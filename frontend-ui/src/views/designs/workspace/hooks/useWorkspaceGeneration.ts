@@ -3,7 +3,7 @@ import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import type { ArtboardData, BackgroundColor, DesignModel } from '../../board/types';
 import type { GenerationMode, AspectRatio } from '../../board/partials/GenerationZone';
-import { DEFAULT_DESIGN_MODEL } from '../../board/constants';
+import { DEFAULT_DESIGN_MODEL, getSupportedAspectRatios } from '../../board/constants';
 import { useGeneration } from '../../board/hooks/useGeneration';
 import { useBuilder } from '../../board/hooks/useBuilder';
 import { useImageAnalysis } from '../../board/hooks/useImageAnalysis';
@@ -164,6 +164,20 @@ const useWorkspaceGeneration = ({
     // Async to avoid cascading render within effect
     queueMicrotask(() => setPrompt(imageAnalysis.lastPrompt!));
   }, [imageAnalysis.lastPrompt]);
+
+  // Auto-clamp aspect ratio when the user switches to a model that doesn't
+  // support the currently-selected ratio (e.g. FLUX@5:6 → OpenAI which only
+  // accepts 1:1 / 3:2 / 2:3). Snaps to the first supported entry. Prevents
+  // sending a server-snapped ratio the UI no longer surfaces. Routed through
+  // `queueMicrotask` (same pattern as the prompt-fill effect above) so we
+  // don't trip the `react-hooks/set-state-in-effect` cascading-render rule.
+  useEffect(() => {
+    const supported = getSupportedAspectRatios(aiModel);
+    if (supported.length === 0) return;
+    if (!supported.includes(aspectRatio)) {
+      queueMicrotask(() => setAspectRatio(supported[0]));
+    }
+  }, [aiModel, aspectRatio]);
 
   // -- Sync prompt when selecting an AI artboard --
   const prevSelectedIdRef = useRef<string | null>(null);

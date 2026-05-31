@@ -314,3 +314,35 @@ None — all six clarifications were locked during /requirements. One forward-lo
 ## Status flips
 
 - `features/INDEX.md` — `Canvas + Editor Bugs + Image-Gen Auto-Mode` → **In Review**
+
+---
+
+# Phase D follow-up — Image-Gen UX improvements
+
+Date: 2026-05-31. Two render/contract bugs surfaced post Phase A-C deploy in dogfood:
+
+1. **OpenAI silently snaps custom ratios.** Picking a 5:6 (or 4:3, 16:9, …) ratio while an OpenAI model is selected sent the request through `_openai_size_for_dims`, which snaps server-side to one of three fixed sizes. Users saw a 1024² come back when they asked for 1000×1200 — silent and surprising.
+2. **KonvaImage stretches non-matching aspect ratios.** When the returned image natural ratio didn't match the artboard slot (e.g. a 1024×1024 OpenAI image landing in a 1000×1200 MBA slot), Konva was given `width=1000, height=1200` directly → vertical compression. User feedback: "Ich will keine Stauchung sondern ich will dann selbst das Artboard nachjustieren können ohne das Original Bild was zurückkommt zu verändern."
+
+## Acceptance Criteria
+
+- [x] AC-D-1: Per-model aspect-ratio dropdown filter — `MODEL_SUPPORTED_RATIOS` map in `board/constants.ts` exposes only the 3 OpenAI-native ratios (1:1, 3:2, 2:3) when an OpenAI model is selected; all 8 ratios for Gemini/FLUX.
+- [x] AC-D-2: Aspect-ratio auto-clamp in `useWorkspaceGeneration` — when the user switches from a permissive model to an OpenAI model while the current ratio is unsupported, the panel state snaps to the first supported entry (= 1:1) so we never submit a now-hidden ratio.
+- [x] AC-D-3: ArtboardElement renders KonvaImage with scale-to-fit + center math — `fitScale = min(slotW/naturalW, slotH/naturalH)`, image rendered at `(naturalW*fitScale, naturalH*fitScale)` with `x/y` offsets centering the image. Artboard `backgroundColor` shows through the letterbox bars naturally.
+- [x] AC-D-4: Image bytes preserved unchanged on disk — the only mutation is render-time, the layer's stored `element.width/height` continues to be the user-resizable slot (Transformer + persisted layout untouched).
+- [x] AC-D-5: Existing `useArtboards` first-image-load auto-resize effect is preserved unchanged — for fresh AI returns the slot matches the image ratio and no letterbox bars appear. Bars only appear on subsequent re-generations into an already-sized slot, which is exactly what the user asked for.
+
+## Files
+
+- `frontend-ui/src/views/designs/board/constants.ts` — EDIT (added `MODEL_SUPPORTED_RATIOS` + `getSupportedAspectRatios`)
+- `frontend-ui/src/views/designs/board/partials/GenerationZone.tsx` — EDIT (filter `ASPECT_RATIO_OPTIONS` through helper before passing to slider)
+- `frontend-ui/src/views/designs/board/partials/ArtboardElement.tsx` — EDIT (scale-to-fit + center math in `renderContent`)
+- `frontend-ui/src/views/designs/workspace/hooks/useWorkspaceGeneration.ts` — EDIT (auto-clamp `useEffect` watching `aiModel`/`aspectRatio`)
+- `frontend-ui/src/views/designs/board/__tests__/aspectRatioSupport.test.ts` — NEW (12 tests covering helper for all 10 models + unknown-id fallback + map coverage)
+- `frontend-ui/src/views/designs/board/partials/__tests__/ArtboardElement.letterbox.test.tsx` — NEW (6 tests: vertical bars, horizontal bars, exact fit, loading state, zero-dim guard, slot persistence)
+
+## Out of scope
+
+- Backend `_openai_size_for_dims` removal (still useful as a defense in depth for any in-flight legacy run state).
+- ModelSelector legacy component (`board/partials/ModelSelector.tsx`) — unused by the live panel; left unchanged.
+- Showing letterbox bars in the right-panel's small thumbnail strip — thumbs use a separate render path (no Konva).

@@ -26,6 +26,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING, radius } from '@/style/constants';
 import type { BackgroundColor, DesignModel, GenerationMode } from '../types';
+import { getSupportedAspectRatios } from '../constants';
 import ParallelPromptsRow from './ParallelPromptsRow';
 
 // -----------------------------------------------------------------
@@ -465,9 +466,17 @@ const GenerationZone = ({
     onModeChange?.(e.target.value as GenerationMode);
   };
 
+  // Per-model whitelist — OpenAI accepts only 1:1 / 3:2 / 2:3 cleanly;
+  // every other model accepts the full 8-ratio set. Preserves source order
+  // so the slider keeps a stable index → ratio mapping.
+  const supportedRatios = getSupportedAspectRatios(model);
+  const filteredAspectOptions = ASPECT_RATIO_OPTIONS.filter((o) =>
+    supportedRatios.includes(o.value),
+  );
+
   const handleAspectRatioChange = (_: Event, value: number | number[]) => {
     const idx = typeof value === 'number' ? value : value[0];
-    const opt = ASPECT_RATIO_OPTIONS[idx];
+    const opt = filteredAspectOptions[idx];
     if (opt) onAspectRatioChange?.(opt.value);
   };
 
@@ -481,8 +490,8 @@ const GenerationZone = ({
     onImageCountChange(v);
   };
 
-  const currentAspectIdx = ASPECT_RATIO_OPTIONS.findIndex((o) => o.value === aspectRatio);
-  const currentAspect = ASPECT_RATIO_OPTIONS[currentAspectIdx >= 0 ? currentAspectIdx : 0];
+  const currentAspectIdx = filteredAspectOptions.findIndex((o) => o.value === aspectRatio);
+  const currentAspect = filteredAspectOptions[currentAspectIdx >= 0 ? currentAspectIdx : 0];
 
   const placeholderText = isParallel
     ? t(
@@ -649,11 +658,13 @@ const GenerationZone = ({
             size="small"
             color="secondary"
             min={0}
-            max={ASPECT_RATIO_OPTIONS.length - 1}
+            max={Math.max(0, filteredAspectOptions.length - 1)}
             step={1}
             value={currentAspectIdx >= 0 ? currentAspectIdx : 0}
             onChange={handleAspectRatioChange}
-            disabled={disabled || isGenerating || !onAspectRatioChange}
+            disabled={
+              disabled || isGenerating || !onAspectRatioChange || filteredAspectOptions.length <= 1
+            }
             aria-label={t('design.generation.resolution', 'Resolution')}
             sx={{ '& .MuiSlider-thumb': { width: 12, height: 12 } }}
           />
