@@ -20,6 +20,14 @@ export interface ModelEntry {
 
 export const MODELS: ReadonlyArray<ModelEntry> = [
   { value: 'openai/gpt-4.1-mini', label: 'GPT-4.1 Mini', provider: 'OpenRouter' },
+  // 2026-05-19 — Google's high-efficiency multimodal model. 1M context,
+  // text/image/video/audio/PDF input, thinking-mode default medium.
+  // Pricing: $1.50/M input, $9/M output. Vision-capable.
+  {
+    value: 'google/gemini-3.5-flash',
+    label: 'Gemini 3.5 Flash',
+    provider: 'OpenRouter',
+  },
   {
     value: 'google/gemini-3-flash-preview',
     label: 'Gemini 3 Flash (Preview)',
