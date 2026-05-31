@@ -17,9 +17,6 @@ import PromptListSection from './rightPanel/PromptListSection';
 import ArtboardListSection from './rightPanel/ArtboardListSection';
 import ReferencesSection from './rightPanel/ReferencesSection';
 import LayerPanel from './rightPanel/LayerPanel';
-import BulkUpscaleDrawer from './BulkUpscaleDrawer';
-import { useAppSelector } from '@/store/hooks';
-import { useUpscaleBatch } from '../hooks/useUpscaleBatch';
 
 // -----------------------------------------------------------------
 // Constants
@@ -216,11 +213,6 @@ const RightPanel = ({
   onClearSourceImage2,
 }: RightPanelProps) => {
   const { t } = useTranslation();
-
-  // PROJ-27 — read active batch from Redux + drive drawer with live polling.
-  // Mounted at right-panel level so the drawer survives selection changes.
-  const activeBatchId = useAppSelector((s) => s.upscale.activeBatchId);
-  const { jobs, isFetchingStatus } = useUpscaleBatch({ activeBatchId });
 
   const isElementMode = panelState.mode === 'element';
   const hasGenZone = onPromptChange && onModelChange && onBgColorChange && onGenerate;
@@ -421,14 +413,6 @@ const RightPanel = ({
         </ScrollableZone>
       )}
 
-      {/* PROJ-27 — Bulk-upscale drawer mounted at right-panel level so it
-          persists across selection changes. Reads activeBatchId from Redux
-          + receives polled job rows via useUpscaleBatch. */}
-      <BulkUpscaleDrawer
-        jobs={jobs}
-        batchId={activeBatchId}
-        isLoading={isFetchingStatus}
-      />
     </PanelRoot>
   );
 };

@@ -18,6 +18,7 @@ from design_app.api.views import (
     BuilderPresetDetailView,
     BuilderPresetListCreateView,
     BuildPromptsView,
+    CancelUpscaleJobView,
     CollageView,
     CustomSpatialAnalyzeView,
     CustomSpatialDetailView,
@@ -384,6 +385,12 @@ urlpatterns = [
         'designs/<uuid:design_id>/upscale/',
         UpscaleSingleView.as_view(),
         name='design-upscale-single',
+    ),
+    # FIX-canvas-editor-bugs-and-image-gen Phase D — cancel an in-flight job.
+    path(
+        'designs/upscale/jobs/<uuid:job_id>/cancel/',
+        CancelUpscaleJobView.as_view(),
+        name='upscale-job-cancel',
     ),
     # Webhook is published at /api/upscale/callback/ — no JWT, signature-verified.
     path(

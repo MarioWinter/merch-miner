@@ -346,3 +346,60 @@ Date: 2026-05-31. Two render/contract bugs surfaced post Phase A-C deploy in dog
 - Backend `_openai_size_for_dims` removal (still useful as a defense in depth for any in-flight legacy run state).
 - ModelSelector legacy component (`board/partials/ModelSelector.tsx`) — unused by the live panel; left unchanged.
 - Showing letterbox bars in the right-panel's small thumbnail strip — thumbs use a separate render path (no Konva).
+
+---
+
+# Phase D follow-up #2 — Drawer architecture + Cancel
+
+Date: 2026-05-31. Two drawer-related issues surfaced post Phase D #1:
+
+1. **Two parallel drawers existed.** Phase B mounted a tiny per-job `UpscaleJobsDrawer` inside the topbar pill (local `useState`), while PROJ-27's full-featured `BulkUpscaleDrawer` (thumbs + retry + clear-completed + dismiss) lived inside `RightPanel` — meaning the pill on non-workspace views opened the slim drawer, but inside the workspace clicking the pill did nothing useful (the rich drawer was Redux-driven from a different action). One drawer, one location.
+2. **No way to cancel a running upscale.** A user kicking off a long-running batch had to wait for it to complete (or `is_terminal` to flip via failure) before the slot was freed and quota refunded.
+
+## Acceptance Criteria
+
+- [x] AC-D2-1: `BulkUpscaleDrawer` is mounted exactly once globally in `App.tsx`, next to `useGlobalUpscaleNotifications()`. Reads `drawerOpen` + `activeBatchId` from Redux + pulls live jobs via `useUpscaleBatch` internally — no props.
+- [x] AC-D2-2: `RightPanel.tsx` no longer mounts `BulkUpscaleDrawer` and no longer imports `useUpscaleBatch` / `useAppSelector` for upscale purposes.
+- [x] AC-D2-3: Phase B `UpscaleJobsDrawer` + its test file are deleted (zero remaining importers in `frontend-ui/src/`); the empty `partials/` folder under `UpscaleStatusPill` is removed.
+- [x] AC-D2-4: `UpscaleStatusPill` click handler dispatches `openDrawer()` on the upscale slice — drops `useState<boolean>` for `drawerOpen` and the local drawer JSX entirely.
+- [x] AC-D2-5: New `cancelUpscaleJob` RTK Query mutation in `upscaleApi.ts` POSTs `/api/designs/upscale/jobs/<job_id>/cancel/`, invalidates `UpscaleBatch` + `UpscaleQuota` tags. Hook exported as `useCancelUpscaleJobMutation`.
+- [x] AC-D2-6: Per-job Cancel IconButton (`@mui/icons-material/Cancel`) renders for `pending` and `running` rows only — Retry (existing behavior) stays for `failed`; completed rows render no action. Aria-label uses `upscale.bulk.cancelAria`.
+- [x] AC-D2-7: Cancel is disabled per-row while the mutation is in-flight (Set-based tracking by `job_id` — multiple cancels can run in parallel, each row toggles independently).
+- [x] AC-D2-8: Success snackbar fires on 200 (`upscale.bulk.cancelSuccess`); error snackbar fires on rejection (`upscale.bulk.cancelError`). Both i18n EN/DE with ASCII fallback.
+
+## Files
+
+- `frontend-ui/src/store/upscaleApi.ts` — EDIT (added `UpscaleCancelResponse`, `cancelUpscaleJob` mutation, exported `useCancelUpscaleJobMutation`)
+- `frontend-ui/src/views/designs/board/partials/BulkUpscaleDrawer.tsx` — EDIT (self-contained: dropped props, pulls jobs via `useUpscaleBatch`; added Cancel action + per-row in-flight state Set)
+- `frontend-ui/src/views/designs/board/partials/RightPanel.tsx` — EDIT (removed `<BulkUpscaleDrawer ...>` mount + 3 imports + the unused `activeBatchId`/`jobs`/`isFetchingStatus` plumbing)
+- `frontend-ui/src/components/UpscaleStatusPill/index.tsx` — EDIT (drop local `useState` for drawerOpen + local `UpscaleJobsDrawer` render; click dispatches `openDrawer()`)
+- `frontend-ui/src/components/UpscaleStatusPill/partials/UpscaleJobsDrawer.tsx` — DELETE
+- `frontend-ui/src/components/UpscaleStatusPill/__tests__/UpscaleJobsDrawer.test.tsx` — DELETE
+- `frontend-ui/src/components/UpscaleStatusPill/partials/` — DELETE (empty after JobsDrawer removal)
+- `frontend-ui/src/App.tsx` — EDIT (mount global `<BulkUpscaleDrawer />` once, next to `useGlobalUpscaleNotifications()`)
+- `frontend-ui/src/components/UpscaleStatusPill/__tests__/UpscaleStatusPill.test.tsx` — EDIT (replaced "click opens local drawer" assertion with "click dispatches openDrawer Redux action" — verified via `store.getState().upscale.drawerOpen`)
+- `frontend-ui/src/views/designs/board/partials/__tests__/BulkUpscaleDrawer.test.tsx` — EDIT (rewired existing 5 tests to the no-prop drawer + `useUpscaleBatch` mock; added 7 new tests for Cancel: pending/running render, completed/failed no-render, mutation called with right job_id, per-row in-flight disable, success snackbar, error snackbar)
+- `frontend-ui/public/locales/{en,de}/translation.json` — EDIT (new `upscale.bulk.cancel`, `cancelAria`, `cancelSuccess`, `cancelError` keys)
+
+## Trade-offs
+
+| Decision | Why |
+|---|---|
+| Drawer reads its own state + jobs via `useUpscaleBatch` internally (zero props) | Single source of truth; lets us mount it once globally without prop-drilling through 6 view layers. Drawer is the only consumer of those values now that RightPanel doesn't render it. |
+| Mount in `App.tsx` (not `AppLayout.tsx`) | Matches `useGlobalUpscaleNotifications()` slot — both must run pre-auth-guard so they survive private-route boundaries the same way. |
+| Invalidate the entire `UpscaleBatch` tag bucket on cancel (not a specific batch id) | Cancel takes a `job_id`, not a `batch_id` — without an extra round-trip we can't know which batch owns the job. Bucket-wide invalidation costs one refetch of the active batch (which is already polling). |
+| Per-row `Set<string>` for in-flight cancel state (not a single boolean) | Multiple cancels can run in parallel; each row's button must toggle independently. `useState<Set<string>>` with a new-Set copy on each transition stays cheap (typical batch ≤ 100 rows) and avoids racing the RTK Query `isLoading` flag (which is global to the mutation hook, not per-arg). |
+| No separate "cancelled" status — Cancel surfaces as `failed + error_message='Cancelled by user'` | Backend contract. Existing failed-row styling already conveys the visual. Zero new chip color / enum work. |
+
+## Verification
+
+- `npx tsc -b` → zero errors.
+- `npx eslint <touched files> --max-warnings=0` → zero warnings.
+- `npm run test -- --run` → **1792 pass / 15 skipped / 0 fail** (236 files). Touched tests: 12 in BulkUpscaleDrawer (5 existing + 7 new) + 5 in UpscaleStatusPill (4 unchanged + 1 rewritten). Net delta vs baseline (1788) = +4 tests, +2 deleted files (Phase B JobsDrawer + its test).
+- Phase B `UpscaleJobsDrawer.test.tsx` deleted — no test was salvageable since the entire component goes away. Coverage of the global drawer click-path comes from the new "click dispatches openDrawer" pill test + the existing BulkUpscaleDrawer suite.
+
+## Out of scope
+
+- Backend cancel endpoint — already shipped + tested separately (22 backend tests).
+- "Cancel all" button at the batch level — not requested. Per-row Cancel is enough for the user complaint.
+- Topbar pill mount location — kept inside `Topbar.tsx` exactly as before.

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Avatar,
   Box,
@@ -16,6 +16,7 @@ import {
 import { alpha, styled } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CancelIcon from '@mui/icons-material/Cancel';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -25,10 +26,11 @@ import {
   toggleHideCompleted,
 } from '@/store/upscaleSlice';
 import {
+  useCancelUpscaleJobMutation,
   useTriggerSingleMutation,
-  type UpscaleBatchJobRow,
   type UpscaleJobStatus,
 } from '@/store/upscaleApi';
+import { useUpscaleBatch } from '../hooks/useUpscaleBatch';
 import { COLORS } from '@/style/constants';
 
 // -----------------------------------------------------------------
@@ -129,31 +131,27 @@ const StatusChip = ({ status }: StatusChipProps) => {
 };
 
 // -----------------------------------------------------------------
-// Props
+// Component — self-contained. Reads activeBatchId + drawerOpen from
+// Redux and pulls live job rows via useUpscaleBatch internally. Mounted
+// once globally in App.tsx so it's available across views.
 // -----------------------------------------------------------------
 
-interface BulkUpscaleDrawerProps {
-  jobs: UpscaleBatchJobRow[];
-  batchId: string | null;
-  isLoading?: boolean;
-}
-
-// -----------------------------------------------------------------
-// Component
-// -----------------------------------------------------------------
-
-const BulkUpscaleDrawer = ({
-  jobs,
-  batchId,
-  isLoading,
-}: BulkUpscaleDrawerProps) => {
+const BulkUpscaleDrawer = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const dispatch = useAppDispatch();
   const open = useAppSelector((s) => s.upscale.drawerOpen);
   const hideCompleted = useAppSelector((s) => s.upscale.hideCompletedInDrawer);
+  const activeBatchId = useAppSelector((s) => s.upscale.activeBatchId);
+
+  const { jobs, isFetchingStatus } = useUpscaleBatch({ activeBatchId });
 
   const [triggerSingle] = useTriggerSingleMutation();
+  const [cancelJob] = useCancelUpscaleJobMutation();
+  // Per-row in-flight Cancel state: a Set of job_ids whose cancel mutation
+  // is currently pending. Using a Set keeps row-disable logic O(1) and lets
+  // multiple cancels run in parallel without blocking each other.
+  const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
 
   const visibleJobs = useMemo(
     () => (hideCompleted ? jobs.filter((j) => j.status !== 'completed') : jobs),
@@ -163,7 +161,7 @@ const BulkUpscaleDrawer = ({
   const completedCount = jobs.filter((j) => j.status === 'completed').length;
   const total = jobs.length;
   const progressValue = total > 0 ? (completedCount / total) * 100 : 0;
-  const shortBatchId = batchId ? batchId.slice(0, 8) : '';
+  const shortBatchId = activeBatchId ? activeBatchId.slice(0, 8) : '';
 
   const handleClose = useCallback(() => {
     dispatch(closeDrawer());
@@ -198,6 +196,40 @@ const BulkUpscaleDrawer = ({
       }
     },
     [enqueueSnackbar, t, triggerSingle],
+  );
+
+  const handleCancel = useCallback(
+    async (jobId: string) => {
+      // Optimistic disable — flip the row's cancel button off immediately.
+      setCancellingIds((prev) => {
+        const next = new Set(prev);
+        next.add(jobId);
+        return next;
+      });
+      try {
+        await cancelJob(jobId).unwrap();
+        enqueueSnackbar(
+          t('upscale.bulk.cancelSuccess', {
+            defaultValue: 'Upscale cancelled',
+          }),
+          { variant: 'success' },
+        );
+      } catch {
+        enqueueSnackbar(
+          t('upscale.bulk.cancelError', {
+            defaultValue: 'Could not cancel - try again',
+          }),
+          { variant: 'error' },
+        );
+      } finally {
+        setCancellingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(jobId);
+          return next;
+        });
+      }
+    },
+    [cancelJob, enqueueSnackbar, t],
   );
 
   return (
@@ -239,7 +271,7 @@ const BulkUpscaleDrawer = ({
 
       <ProgressWrap>
         <LinearProgress
-          variant={isLoading && total === 0 ? 'indeterminate' : 'determinate'}
+          variant={isFetchingStatus && total === 0 ? 'indeterminate' : 'determinate'}
           value={progressValue}
         />
       </ProgressWrap>
@@ -269,29 +301,55 @@ const BulkUpscaleDrawer = ({
                 })
               : t('upscale.bulk.retry', { defaultValue: 'Retry' });
 
+            const isCancelling = cancellingIds.has(job.job_id);
+            const isCancellable =
+              job.status === 'pending' || job.status === 'running';
+
+            let secondaryAction: React.ReactNode = null;
+            if (job.status === 'failed') {
+              secondaryAction = (
+                <Tooltip title={retryTitle}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => void handleRetry(job.design_id)}
+                      disabled={retryDisabled}
+                      aria-label={t('upscale.bulk.retry', {
+                        defaultValue: 'Retry',
+                      })}
+                    >
+                      <RefreshIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              );
+            } else if (isCancellable) {
+              secondaryAction = (
+                <Tooltip
+                  title={t('upscale.bulk.cancel', { defaultValue: 'Cancel' })}
+                >
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => void handleCancel(job.job_id)}
+                      disabled={isCancelling}
+                      aria-label={t('upscale.bulk.cancelAria', {
+                        defaultValue: 'Cancel upscale job',
+                      })}
+                    >
+                      <CancelIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              );
+            }
+
             return (
               <ListItem
                 key={job.job_id}
                 divider
                 sx={{ gap: 1.5, alignItems: 'center', py: 1 }}
-                secondaryAction={
-                  job.status === 'failed' ? (
-                    <Tooltip title={retryTitle}>
-                      <span>
-                        <IconButton
-                          size="small"
-                          onClick={() => void handleRetry(job.design_id)}
-                          disabled={retryDisabled}
-                          aria-label={t('upscale.bulk.retry', {
-                            defaultValue: 'Retry',
-                          })}
-                        >
-                          <RefreshIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  ) : null
-                }
+                secondaryAction={secondaryAction}
               >
                 <JobThumb
                   src={job.thumbnail_url ?? undefined}

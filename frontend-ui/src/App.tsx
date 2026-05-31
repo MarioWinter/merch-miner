@@ -28,6 +28,7 @@ import PrivacyPage from './views/legal/privacy/PrivacyPage';
 import { isRegistrationEnabled } from './utils/isRegistrationEnabled';
 import { useVerifyActiveBatch } from './views/designs/board/hooks/useVerifyActiveBatch';
 import { useGlobalUpscaleNotifications } from './hooks/useGlobalUpscaleNotifications';
+import BulkUpscaleDrawer from './views/designs/board/partials/BulkUpscaleDrawer';
 
 
 const App = () => {
@@ -51,8 +52,17 @@ const App = () => {
   const registrationEnabled = isRegistrationEnabled();
 
   return (
-    <Routes>
-      {/* Public auth routes */}
+    <>
+      {/* FIX-canvas-editor-bugs-and-image-gen Phase D #2 — global bulk-upscale
+          drawer. Mounted ONCE here (next to useGlobalUpscaleNotifications) so
+          the drawer is reachable from any view via the topbar pill, not just
+          inside the design workspace. Reads its open/jobs state from Redux
+          + useUpscaleBatch internally. `keepMounted: true` on the underlying
+          Modal handles the no-active-batch case cheaply. */}
+      <BulkUpscaleDrawer />
+
+      <Routes>
+        {/* Public auth routes */}
       <Route path="/login" element={<LoginPage />} />
       {registrationEnabled && (
         <Route path="/register" element={<RegisterPage />} />
@@ -99,7 +109,8 @@ const App = () => {
 
       {/* Fallback — redirect unknown routes to dashboard; PrivateRoute handles auth guard */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }
 

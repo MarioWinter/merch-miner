@@ -1,12 +1,11 @@
-import { useEffect, useReducer, useState } from 'react';
+import { useCallback, useEffect, useReducer } from 'react';
 import { Chip, CircularProgress } from '@mui/material';
 import { alpha, styled, keyframes } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setActiveBatch } from '@/store/upscaleSlice';
+import { openDrawer, setActiveBatch } from '@/store/upscaleSlice';
 import { COLORS } from '@/style/constants';
 import { useUpscaleBatch } from '@/views/designs/board/hooks/useUpscaleBatch';
-import UpscaleJobsDrawer from './partials/UpscaleJobsDrawer';
 
 // -----------------------------------------------------------------
 // Constants
@@ -82,7 +81,6 @@ const UpscaleStatusPill = () => {
   const [{ isFading }, fadeDispatch] = useReducer(fadeReducer, {
     isFading: false,
   });
-  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Aggregate counts across batch + single-design jobs.
   const batchTotal = batch?.jobs.length ?? 0;
@@ -119,6 +117,13 @@ const UpscaleStatusPill = () => {
     return () => clearTimeout(timer);
   }, [activeBatchId, anyActive, dispatch, everythingSettled]);
 
+  // FIX-canvas-editor-bugs-and-image-gen Phase D #2 — click dispatches the
+  // global drawerOpen flag. The BulkUpscaleDrawer is mounted once in App.tsx
+  // and subscribes to that flag, so we no longer render any drawer locally.
+  const handleClick = useCallback(() => {
+    dispatch(openDrawer());
+  }, [dispatch]);
+
   // Hidden when nothing is in flight.
   if (!anyActive) return null;
 
@@ -136,21 +141,13 @@ const UpscaleStatusPill = () => {
       : t('upscale.pill.starting', { defaultValue: 'Upscaling…' });
 
   return (
-    <>
-      <Pill
-        isFading={isFading}
-        icon={<CircularProgress size={12} thickness={5} color="inherit" />}
-        label={label}
-        onClick={() => setDrawerOpen(true)}
-        aria-label={t('upscale.pill.drawerOpenAria', 'Show running upscales')}
-      />
-      <UpscaleJobsDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        batchJobs={batch?.jobs ?? []}
-        singleDesignIds={processingDesignIds}
-      />
-    </>
+    <Pill
+      isFading={isFading}
+      icon={<CircularProgress size={12} thickness={5} color="inherit" />}
+      label={label}
+      onClick={handleClick}
+      aria-label={t('upscale.pill.drawerOpenAria', 'Show running upscales')}
+    />
   );
 };
 

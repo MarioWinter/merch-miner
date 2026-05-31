@@ -1,10 +1,14 @@
 /**
- * FIX-canvas-editor-bugs-and-image-gen Phase B — promoted UpscaleStatusPill.
+ * FIX-canvas-editor-bugs-and-image-gen — promoted UpscaleStatusPill.
  *
- * Covers the post-promotion behavior: the pill now subscribes to BOTH the
- * batch path (`upscaleSlice.activeBatchId`) AND the single-design path
+ * Phase B: the pill subscribes to BOTH the batch path
+ * (`upscaleSlice.activeBatchId`) AND the single-design path
  * (`upscaleSlice.processingDesignIds`). The aggregated label sums totals
- * across both buckets. Click opens a per-job drawer.
+ * across both buckets.
+ *
+ * Phase D #2: click no longer renders a local drawer — it dispatches
+ * `openDrawer()` on the upscale slice. The globally-mounted
+ * BulkUpscaleDrawer (App.tsx) subscribes to that flag and opens.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
@@ -117,7 +121,7 @@ describe('UpscaleStatusPill', () => {
     expect(screen.getByText(/1\/4/)).toBeInTheDocument();
   });
 
-  it('opens the drawer on click and lists per-source rows', async () => {
+  it('click dispatches openDrawer Redux action (drawerOpen flips to true)', async () => {
     mockedHook.mockReturnValue({
       ...baseHookReturn,
       batch: {
@@ -129,7 +133,7 @@ describe('UpscaleStatusPill', () => {
       },
     });
     const user = userEvent.setup();
-    renderWithProviders(<UpscaleStatusPill />, {
+    const { store } = renderWithProviders(<UpscaleStatusPill />, {
       reducers: { upscale: upscaleReducer },
       preloadedState: {
         upscale: {
@@ -140,12 +144,8 @@ describe('UpscaleStatusPill', () => {
       },
     });
 
+    expect(store.getState().upscale.drawerOpen).toBe(false);
     await user.click(screen.getByRole('button'));
-
-    expect(
-      await screen.findByRole('dialog', { name: /running upscales/i }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByTestId('upscale-job-row-single')).toHaveLength(1);
-    expect(screen.getAllByTestId('upscale-job-row-batch')).toHaveLength(1);
+    expect(store.getState().upscale.drawerOpen).toBe(true);
   });
 });

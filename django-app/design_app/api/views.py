@@ -78,11 +78,17 @@ from design_app.models import (
     PromptPreset,
 )
 from design_app.tasks import (
+    _refund_quota,
     task_analyze_image,
     task_generate_design,
     task_remove_background,
     task_upscale_design,
 )
+from design_app.services.replicate_client import (
+    ReplicateConfigError,
+    cancel_prediction,
+)
+from user_auth_app.api.authentication import CookieJWTAuthentication
 
 logger = logging.getLogger(__name__)
 
@@ -2913,3 +2919,88 @@ class NicheCardPresetViewSet(viewsets.GenericViewSet):
             )
 
         return Response(cache_payload)
+
+
+# -- Upscale Cancel (FIX-canvas-editor-bugs-and-image-gen Phase D) --
+
+class CancelUpscaleJobView(APIView):
+    """POST /api/designs/upscale/jobs/<uuid:job_id>/cancel/.
+
+    Cancels an in-flight upscale job:
+      - terminal jobs return 200 idempotently (no-op + detail flag),
+      - active jobs are flipped to ``failed`` locally with error_message
+        ``Cancelled by user`` and the user's monthly quota is refunded,
+      - if the job has a ``replicate_prediction_id`` we best-effort call
+        Replicate's cancel API; failures there are logged but never
+        block the local mark + refund (the UI must always unwedge).
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, job_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        job = get_object_or_404(
+            DesignProcessingJob.objects.select_related(
+                'design', 'design__workspace', 'triggered_by',
+            ),
+            pk=job_id,
+        )
+
+        # Workspace isolation: design.workspace must match the caller's active workspace.
+        if str(job.design.workspace_id) != str(ws_id):
+            return Response(
+                {'error': 'forbidden'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        terminal_statuses = (
+            DesignProcessingJob.Status.COMPLETED,
+            DesignProcessingJob.Status.FAILED,
+        )
+        if job.status in terminal_statuses:
+            return Response(
+                {
+                    'id': str(job.id),
+                    'status': job.status,
+                    'error_message': job.error_message,
+                    'detail': 'already terminal',
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        # Best-effort Replicate cancel — never block the local unwedge.
+        if job.replicate_prediction_id:
+            try:
+                cancel_prediction(job.replicate_prediction_id)
+            except ReplicateConfigError as exc:
+                logger.warning(
+                    'cancel_upscale: replicate config missing for job=%s: %s',
+                    job.id, exc,
+                )
+            except Exception as exc:  # noqa: BLE001 — SDK transport errors
+                logger.warning(
+                    'cancel_upscale: replicate cancel failed for job=%s pred=%s: %s',
+                    job.id, job.replicate_prediction_id, exc,
+                )
+
+        now = timezone.now()
+        job.status = DesignProcessingJob.Status.FAILED
+        job.error_message = 'Cancelled by user'
+        job.completed_at = now
+        job.save(update_fields=['status', 'error_message', 'completed_at'])
+
+        if job.triggered_by_id:
+            _refund_quota(job.triggered_by, job.completed_at)
+
+        return Response(
+            {
+                'id': str(job.id),
+                'status': job.status,
+                'error_message': job.error_message,
+            },
+            status=status.HTTP_200_OK,
+        )
