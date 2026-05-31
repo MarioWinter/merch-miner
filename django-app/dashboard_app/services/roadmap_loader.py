@@ -28,8 +28,27 @@ _FRONT_MATTER_FENCE = '---'
 _memo: dict[tuple[str, int], list[dict]] = {}
 
 
+_CONTAINER_STATIC_DIR = Path('/srv/static_content')
+
+
 def _roadmap_path() -> Path:
-    """Return the absolute path to ``docs/roadmap_user_facing.md``."""
+    """Return the absolute path to ``roadmap_user_facing.md``.
+
+    Resolution order:
+      1. ``/srv/static_content/roadmap_user_facing.md`` — Docker bind-
+         mount target (dev override + prod compose both mount the repo-
+         root file here; mounting outside ``/app`` avoids the macOS
+         virtiofs limitation that prevents nesting single-file mounts
+         inside an existing dir bind-mount).
+      2. ``BASE_DIR.parent / 'docs' / <file>`` — local pytest outside
+         Docker (BASE_DIR == ``django-app/``; file lives at repo root).
+
+    Returns the first existing candidate; otherwise the container path
+    so the caller's downstream missing-file branch fires as expected.
+    """
+    container_path = _CONTAINER_STATIC_DIR / _ROADMAP_FILENAME
+    if container_path.exists():
+        return container_path
     return Path(settings.BASE_DIR).parent / 'docs' / _ROADMAP_FILENAME
 
 

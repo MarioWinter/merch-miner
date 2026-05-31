@@ -11,7 +11,7 @@ import os
 
 import django_rq
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage
 
 from feedback_app.models import BugFeatureReport
 
@@ -105,13 +105,29 @@ def send_feedback_email(report_id: str) -> None:
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or recipient
 
     try:
-        send_mail(
+        msg = EmailMessage(
             subject=subject,
-            message=body,
+            body=body,
             from_email=from_email,
-            recipient_list=[recipient],
-            fail_silently=False,
+            to=[recipient],
         )
+        # AC-1-3: attach the screenshot file itself when present so the
+        # recipient can see what the user reported without logging into
+        # the admin. Mime + size were already validated server-side at
+        # upload time (FeedbackScreenshotUploadSerializer).
+        if report.screenshot_id and report.screenshot.image:
+            try:
+                msg.attach_file(report.screenshot.image.path)
+            except (FileNotFoundError, ValueError):
+                # Storage backend (e.g. cloud) may not expose .path, or
+                # the file was deleted between enqueue and run — still
+                # send the body so the report doesn't get lost.
+                logger.warning(
+                    'send_feedback_email: screenshot file unreachable for '
+                    'report %s; sending body only.',
+                    report_id,
+                )
+        msg.send(fail_silently=False)
     except Exception:
         # Log + re-raise so rq retries. AC-1-8: failure does NOT block the
         # API response — the report row is already in the DB by the time

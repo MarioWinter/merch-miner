@@ -56,8 +56,26 @@ _SYSTEM_PROMPT = (
 )
 
 
+_CONTAINER_STATIC_DIR = Path('/srv/static_content')
+
+
 def _changelog_path() -> Path:
-    """Absolute path to repo-root ``CHANGELOG.md`` (one level above BASE_DIR)."""
+    """Absolute path to ``CHANGELOG.md``.
+
+    Resolution order mirrors ``roadmap_loader._roadmap_path``:
+      1. ``/srv/static_content/CHANGELOG.md`` — Docker bind-mount target
+         (dev override + prod compose). Mounted outside ``/app`` because
+         Docker Desktop on macOS doesn't support nesting single-file
+         mounts inside an existing dir bind-mount.
+      2. ``BASE_DIR.parent / CHANGELOG.md`` — local pytest outside
+         Docker.
+
+    Returns the first existing candidate; otherwise the container path
+    so the caller's missing-file branch fires.
+    """
+    container_path = _CONTAINER_STATIC_DIR / _CHANGELOG_FILENAME
+    if container_path.exists():
+        return container_path
     return Path(settings.BASE_DIR).parent / _CHANGELOG_FILENAME
 
 
