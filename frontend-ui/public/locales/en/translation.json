@@ -2655,6 +2655,15 @@
       "empty": "No stuck niches",
       "daysStuck": "{{days}}d stuck"
     },
+    "roadmap": {
+      "title": "Upcoming Features",
+      "caption_last_updated": "Last updated: {{date}}",
+      "empty_placeholder": "Coming soon: our next roadmap entry",
+      "error": "Could not load roadmap",
+      "priority_high": "High priority",
+      "priority_medium": "Medium priority",
+      "priority_low": "Low priority"
+    },
     "agent": {
       "title": "Agent Activity",
       "activeWorkflows": "Active Workflows",

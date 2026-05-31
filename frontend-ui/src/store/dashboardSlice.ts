@@ -9,10 +9,21 @@ import type {
   DateRange,
 } from '../views/dashboard/types';
 
+export interface RoadmapItem {
+  title: string;
+  description: string;
+  priority?: 'high' | 'medium' | 'low';
+}
+
+export interface RoadmapResponse {
+  items: RoadmapItem[];
+  last_updated: string | null;
+}
+
 export const dashboardApi = createApi({
   reducerPath: 'dashboardApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['Dashboard', 'DesignAnalytics', 'ListingAnalytics', 'AgentAnalytics', 'SearchAnalytics'],
+  tagTypes: ['Dashboard', 'DesignAnalytics', 'ListingAnalytics', 'AgentAnalytics', 'SearchAnalytics', 'Roadmap'],
   endpoints: (builder) => ({
     getDashboard: builder.query<DashboardData, void>({
       query: () => ({
@@ -57,6 +68,14 @@ export const dashboardApi = createApi({
       }),
       providesTags: ['SearchAnalytics'],
     }),
+
+    getRoadmap: builder.query<RoadmapResponse, void>({
+      query: () => ({
+        url: '/api/dashboard/roadmap/',
+        method: 'GET',
+      }),
+      providesTags: ['Roadmap'],
+    }),
   }),
 });
 
@@ -66,4 +85,5 @@ export const {
   useGetListingAnalyticsQuery,
   useGetAgentAnalyticsQuery,
   useGetSearchAnalyticsQuery,
+  useGetRoadmapQuery,
 } = dashboardApi;

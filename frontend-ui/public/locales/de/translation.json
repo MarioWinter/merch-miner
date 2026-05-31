@@ -3323,6 +3323,15 @@
       "empty": "Keine blockierten Nischen",
       "daysStuck": "{{days}}T blockiert"
     },
+    "roadmap": {
+      "title": "Geplante Features",
+      "caption_last_updated": "Letzte Aktualisierung: {{date}}",
+      "empty_placeholder": "Bald hier: unser naechster Roadmap-Eintrag",
+      "error": "Roadmap konnte nicht geladen werden",
+      "priority_high": "Hohe Prioritaet",
+      "priority_medium": "Mittlere Prioritaet",
+      "priority_low": "Niedrige Prioritaet"
+    },
     "agent": {
       "title": "Agent-Aktivitaet",
       "activeWorkflows": "Aktive Workflows",

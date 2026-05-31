@@ -105,8 +105,8 @@ Users have no in-app visibility into what's planned. Showing "what's coming" bui
 - As Mario, I want a simple way to communicate the roadmap without users needing to click out to GitHub.
 
 ### Acceptance Criteria
-- [ ] AC-3-1: New panel on the Dashboard view titled "Geplante Features" / "Upcoming Features" (i18n).
-- [ ] AC-3-2: Panel renders a vertical list of 5–10 roadmap items, each showing only:
+- [x] AC-3-1: New panel on the Dashboard view titled "Geplante Features" / "Upcoming Features" (i18n).
+- [x] AC-3-2: Panel renders a vertical list of 5–10 roadmap items, each showing only:
   - Title — user-friendly, e.g. "Bulk-Upload für Listings" NOT "PROJ-13 Desktop Upload App"
   - 1-line description — benefit-oriented, e.g. "Bis zu 50 Listings gleichzeitig zu MBA hochladen" NOT "Electron + Playwright runner that automates the manual MBA upload form"
 - [x] AC-3-3: NO PROJ-IDs, NO tech jargon, NO links to GitHub or specs.
@@ -114,12 +114,12 @@ Users have no in-app visibility into what's planned. Showing "what's coming" bui
 - [x] AC-3-5: Panel order matches file order. Mario controls priority by reordering rows in `docs/roadmap_user_facing.md`.
 - [x] AC-3-6: Panel has subtle "Letzte Aktualisierung: <date>" caption derived from the file's `git log -1 --format=%cd` of `docs/roadmap_user_facing.md` (or `mtime` fallback).
 - [x] AC-3-7: Panel visible to ALL authenticated users in the workspace (no gating).
-- [ ] AC-3-8: Empty state — if file missing or empty, panel shows "Bald hier: unser nächster Roadmap-Eintrag" placeholder (i18n).
+- [x] AC-3-8: Empty state — if file missing or empty, panel shows "Bald hier: unser nächster Roadmap-Eintrag" placeholder (i18n).
 
 ### Edge Cases
 - [x] EC-3-1: `docs/roadmap_user_facing.md` malformed → backend returns empty list + logs warning. Panel shows empty state. No 500 to user.
-- [ ] EC-3-2: Roadmap list contains 20+ items → panel scrolls inside its card (max-height 320px) rather than blowing up the dashboard layout.
-- [ ] EC-3-3: Mario writes a description >200 chars → frontend truncates to first 200 + "…" with full text in title tooltip.
+- [x] EC-3-2: Roadmap list contains 20+ items → panel scrolls inside its card (max-height 320px) rather than blowing up the dashboard layout.
+- [x] EC-3-3: Mario writes a description >200 chars → frontend truncates to first 200 + "…" with full text in title tooltip.
 
 ---
 

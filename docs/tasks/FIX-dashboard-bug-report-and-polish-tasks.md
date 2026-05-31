@@ -152,13 +152,13 @@ Skill: `/backend` then `/frontend`, separately invoked.
 - [x] T7.6: Manual verify in Django shell. *(Replaced with pytest run — 12/12 pass.)*
 
 ### Phase 7b — Frontend
-- [ ] T7.7: Create `views/dashboard/partials/RoadmapWidget/`:
+- [x] T7.7: Create `views/dashboard/partials/RoadmapWidget/`:
   - `index.tsx` — MUI Card with title + 1-line caption + List of items.
   - `hooks/useRoadmap.ts` — RTK Query endpoint for `/api/dashboard/roadmap/`.
   - `__tests__/RoadmapWidget.test.tsx` — loading / data / empty states.
-- [ ] T7.8: Mount RoadmapWidget in the existing Dashboard view layout. Decide grid position together with Phase 8 ChangelogWidget for visual balance.
-- [ ] T7.9: i18n keys under `dashboard.roadmap.*`.
-- [ ] T7.10: Flip AC-3-1 through AC-3-8 + EC-3-1 through EC-3-3 to `[x]`.
+- [x] T7.8: Mount RoadmapWidget in the existing Dashboard view layout. Decide grid position together with Phase 8 ChangelogWidget for visual balance.
+- [x] T7.9: i18n keys under `dashboard.roadmap.*`.
+- [x] T7.10: Flip AC-3-1 through AC-3-8 + EC-3-1 through EC-3-3 to `[x]`.
 
 ---
 
