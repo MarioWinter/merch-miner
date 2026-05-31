@@ -457,18 +457,50 @@ const chatBarSlice = createSlice({
     },
     /**
      * Transition the most recent loading row for `stage` → warning (tool_timeout, etc.).
+     * Optional `reason` lets callers tag the cause (currently only
+     * `'tool_timeout'`) so the post-done downgrader can target the right rows.
      */
     markStageWarning(
       state,
-      action: PayloadAction<{ stage: string; message?: string }>,
+      action: PayloadAction<{ stage: string; message?: string; reason?: 'tool_timeout' }>,
     ) {
-      const { stage, message } = action.payload;
+      const { stage, message, reason } = action.payload;
       for (let i = state.streamingStages.length - 1; i >= 0; i -= 1) {
         const row = state.streamingStages[i];
         if (row.stage === stage && row.status === 'loading') {
           row.status = 'warning';
           if (message) row.message = message;
+          if (reason) row.reason = reason;
           return;
+        }
+      }
+    },
+    /**
+     * FIX-dashboard Item 7 — downgrade tool_timeout warnings to `info` when
+     * the LLM still returned a substantive answer (>200 chars). The original
+     * timeout signal is misleading in that case: the search was slow but the
+     * final answer used alternate sources, so the user shouldn't see an
+     * orange warning chip next to a long, useful response.
+     *
+     * Rules (AC-7-1..5):
+     *   - Only rows with status='warning' AND reason='tool_timeout' are
+     *     candidates (no other warning sources today, but defensive).
+     *   - Only if the final answer length > 200 chars.
+     *   - Rewrite `message` to a localized "search slower than expected"
+     *     string the caller supplies (slice doesn't know t()).
+     *   - ALL matching rows are downgraded (EC-7-2).
+     *   - No-op if no warnings present or answer ≤ 200 chars.
+     */
+    downgradeTimeoutWarningsOnDone(
+      state,
+      action: PayloadAction<{ finalAnswerLength: number; downgradedMessage: string }>,
+    ) {
+      const { finalAnswerLength, downgradedMessage } = action.payload;
+      if (finalAnswerLength <= 200) return;
+      for (const row of state.streamingStages) {
+        if (row.status === 'warning' && row.reason === 'tool_timeout') {
+          row.status = 'info';
+          row.message = downgradedMessage;
         }
       }
     },
@@ -628,6 +660,7 @@ export const {
   pushStreamingStage,
   markStageDone,
   markStageWarning,
+  downgradeTimeoutWarningsOnDone,
   markStageError,
   appendChunksUsed,
   setFollowUps,

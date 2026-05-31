@@ -2855,6 +2855,9 @@
         "providerOpenrouter": "OpenRouter",
         "noResults": "No models match \"{{query}}\""
       },
+      "stages": {
+        "timeoutDowngradedMessage": "Search took longer than expected — answer from alternate sources"
+      },
       "searchDepth": {
         "ariaLabel": "Search depth",
         "title": "Search depth",

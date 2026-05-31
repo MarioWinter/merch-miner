@@ -11,7 +11,7 @@
  */
 
 /** Status for a ThinkingStrip step row. */
-export type StageStatus = 'loading' | 'done' | 'warning' | 'error';
+export type StageStatus = 'loading' | 'done' | 'warning' | 'error' | 'info';
 
 /**
  * One row of the ThinkingStrip — emitted by SSE `stage` / `tool_call` / `tool_result`.
@@ -28,6 +28,13 @@ export interface ThinkingStep {
   durationMs?: number;
   /** Optional message (e.g. tool_timeout error text). */
   message?: string;
+  /**
+   * Optional cause tag for the current status. Set to `'tool_timeout'` when
+   * the row was flipped to warning by an SSE `tool_timeout` event. Used by
+   * the chat-bar slice to downgrade timeouts to `info` post-done when the
+   * LLM still returned a substantive answer (FIX-dashboard Item 7).
+   */
+  reason?: 'tool_timeout';
 }
 
 /**

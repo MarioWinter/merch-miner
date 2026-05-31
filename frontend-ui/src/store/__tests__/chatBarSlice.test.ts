@@ -21,6 +21,7 @@ import chatBarReducer, {
   pushStreamingStage,
   markStageDone,
   markStageWarning,
+  downgradeTimeoutWarningsOnDone,
   appendChunksUsed,
   setFollowUps,
   clearFollowUps,
@@ -340,6 +341,104 @@ describe('chatBarSlice', () => {
       const row = getChatBar(store).streamingStages[0];
       expect(row.status).toBe('warning');
       expect(row.message).toBe('timed out');
+    });
+
+    it('markStageWarning records optional reason="tool_timeout"', () => {
+      const store = createStore();
+      store.dispatch(pushStreamingStage(mkStep('web_search')));
+      store.dispatch(
+        markStageWarning({
+          stage: 'web_search', message: 'timed out', reason: 'tool_timeout',
+        }),
+      );
+      const row = getChatBar(store).streamingStages[0];
+      expect(row.reason).toBe('tool_timeout');
+    });
+  });
+
+  describe('downgradeTimeoutWarningsOnDone (FIX-dashboard Item 7)', () => {
+    const mkStep = (stage: string, ts = 1000): ThinkingStep => ({
+      stage,
+      status: 'loading',
+      ts,
+    });
+    const seedWarning = (store: ReturnType<typeof createStore>, stage = 'web_search') => {
+      store.dispatch(pushStreamingStage(mkStep(stage)));
+      store.dispatch(
+        markStageWarning({ stage, message: 'timed out', reason: 'tool_timeout' }),
+      );
+    };
+
+    it('downgrades tool_timeout warning → info when answer > 200 chars (AC-7-1, AC-7-2)', () => {
+      const store = createStore();
+      seedWarning(store);
+      store.dispatch(
+        downgradeTimeoutWarningsOnDone({
+          finalAnswerLength: 250,
+          downgradedMessage: 'Suche länger als erwartet',
+        }),
+      );
+      const row = getChatBar(store).streamingStages[0];
+      expect(row.status).toBe('info');
+      expect(row.message).toBe('Suche länger als erwartet');
+    });
+
+    it('keeps warning when answer ≤ 200 chars (AC-7-4)', () => {
+      const store = createStore();
+      seedWarning(store);
+      store.dispatch(
+        downgradeTimeoutWarningsOnDone({
+          finalAnswerLength: 180,
+          downgradedMessage: 'should not appear',
+        }),
+      );
+      const row = getChatBar(store).streamingStages[0];
+      expect(row.status).toBe('warning');
+      expect(row.message).toBe('timed out');
+    });
+
+    it('no-op when no warning rows present', () => {
+      const store = createStore();
+      store.dispatch(pushStreamingStage(mkStep('retrieve_niche')));
+      const before = JSON.stringify(getChatBar(store).streamingStages);
+      store.dispatch(
+        downgradeTimeoutWarningsOnDone({
+          finalAnswerLength: 500,
+          downgradedMessage: 'x',
+        }),
+      );
+      expect(JSON.stringify(getChatBar(store).streamingStages)).toBe(before);
+    });
+
+    it('downgrades ALL matching warnings together (EC-7-2)', () => {
+      const store = createStore();
+      seedWarning(store, 'web_search');
+      seedWarning(store, 'search_amazon');
+      store.dispatch(
+        downgradeTimeoutWarningsOnDone({
+          finalAnswerLength: 500,
+          downgradedMessage: 'rewrite',
+        }),
+      );
+      const rows = getChatBar(store).streamingStages;
+      expect(rows.every((r) => r.status === 'info')).toBe(true);
+      expect(rows.every((r) => r.message === 'rewrite')).toBe(true);
+    });
+
+    it('does not touch warnings without reason="tool_timeout" (defensive)', () => {
+      const store = createStore();
+      store.dispatch(pushStreamingStage(mkStep('other_tool')));
+      store.dispatch(
+        markStageWarning({ stage: 'other_tool', message: 'generic warn' }),
+      );
+      store.dispatch(
+        downgradeTimeoutWarningsOnDone({
+          finalAnswerLength: 500,
+          downgradedMessage: 'x',
+        }),
+      );
+      const row = getChatBar(store).streamingStages[0];
+      expect(row.status).toBe('warning');
     });
 
     it('appendChunksUsed concats and caps at 200 (FIFO)', () => {

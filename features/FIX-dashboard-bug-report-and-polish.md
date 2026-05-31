@@ -216,17 +216,17 @@ PR #101 bumped `TOOL_TIMEOUT_SECONDS` from 30 → 90s, fixing the most common fa
 - As a chat user, I don't want to see "Search timed out" when the assistant actually gave me a real answer — that's a bug from my perspective.
 
 ### Acceptance Criteria
-- [ ] AC-7-1: Frontend chatBarSlice `done` reducer detects: (a) any prior stage in current thinking row was marked `warning` with reason starting `tool_timeout`, AND (b) final answer length > 200 chars (heuristic for "substantive answer").
-- [ ] AC-7-2: When both conditions match: downgrade ALL such warning stages to `info` status with message rewritten to "Suche länger als erwartet — Antwort aus alternativen Quellen" (i18n).
-- [ ] AC-7-3: Stage row icon changes from warning (orange ⚠) to info (subtle gray ℹ), matching existing `info` stage style.
-- [ ] AC-7-4: If condition (b) NOT met (LLM gave a tiny "could not find" answer ≤200 chars) → warning stage stays warning (the timeout IS the relevant signal).
-- [ ] AC-7-5: Downgrade happens only at `done`-time, not optimistically during stream. Persisted on the ChatMessage row's `thinking_stages` JSON field — surviving reload.
-- [ ] AC-7-6: Unit tests cover: (1) warning + substantive answer → downgraded, (2) warning + tiny answer → not downgraded, (3) no warning → no change.
+- [x] AC-7-1: Frontend chatBarSlice `done` reducer detects: (a) any prior stage in current thinking row was marked `warning` with reason starting `tool_timeout`, AND (b) final answer length > 200 chars (heuristic for "substantive answer").
+- [x] AC-7-2: When both conditions match: downgrade ALL such warning stages to `info` status with message rewritten to "Suche länger als erwartet — Antwort aus alternativen Quellen" (i18n).
+- [x] AC-7-3: Stage row icon changes from warning (orange ⚠) to info (subtle gray ℹ), matching existing `info` stage style.
+- [x] AC-7-4: If condition (b) NOT met (LLM gave a tiny "could not find" answer ≤200 chars) → warning stage stays warning (the timeout IS the relevant signal).
+- [x] AC-7-5: Downgrade happens only at `done`-time, not optimistically during stream. Persisted on the ChatMessage row's `thinking_stages` JSON field — surviving reload.
+- [x] AC-7-6: Unit tests cover: (1) warning + substantive answer → downgraded, (2) warning + tiny answer → not downgraded, (3) no warning → no change.
 
 ### Edge Cases
 - [ ] EC-7-1: 200-char threshold is brittle for languages with different verbosity (e.g. a meaningful 180-char German answer would be falsely flagged). Track as a follow-up if it becomes a complaint.
-- [ ] EC-7-2: Multiple `tool_timeout` events in the same response (rare — different tools) → ALL downgraded if final answer was substantive.
-- [ ] EC-7-3: User reloads chat history after the fact → persisted `thinking_stages` already has the downgraded text → renders identically. (i.e. the rewrite is persisted, not just runtime.)
+- [x] EC-7-2: Multiple `tool_timeout` events in the same response (rare — different tools) → ALL downgraded if final answer was substantive.
+- [x] EC-7-3: User reloads chat history after the fact → persisted `thinking_stages` already has the downgraded text → renders identically. (i.e. the rewrite is persisted, not just runtime.)
 
 ---
 

@@ -42,7 +42,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { useAppDispatch, useAppSelector, useAppStore } from '@/store/hooks';
 import {
   setStreamingAssistantMessage,
   appendStreamingChunk,
@@ -56,6 +56,7 @@ import {
   setFollowUps,
   setStreamingSloganPayload,
   promoteStreamingSloganPayload,
+  downgradeTimeoutWarningsOnDone,
   selectSearchMode,
   type SearchMode,
 } from '@/store/chatBarSlice';
@@ -242,6 +243,7 @@ export const useSendMessageStream = ({
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const dispatch = useAppDispatch();
+  const store = useAppStore();
   const isStreaming = useAppSelector(
     (s) => s.chatBar.streamingAssistantMessage.isStreaming,
   );
@@ -468,6 +470,7 @@ export const useSendMessageStream = ({
               markStageWarning({
                 stage: data.tool_name,
                 message: data.error,
+                reason: 'tool_timeout',
               }),
             );
             return;
@@ -496,6 +499,18 @@ export const useSendMessageStream = ({
             if (data?.message_id) {
               dispatch(promoteStreamingSloganPayload({ messageId: data.message_id }));
             }
+            // FIX-dashboard Item 7: when a tool_timeout fired earlier but
+            // the LLM still produced a substantive answer, downgrade the
+            // warning stage to info — the search was slow, not failed.
+            // Read the accumulated answer length BEFORE clearStreamingMessage.
+            const finalAnswerLength =
+              store.getState().chatBar.streamingAssistantMessage.content.length;
+            dispatch(
+              downgradeTimeoutWarningsOnDone({
+                finalAnswerLength,
+                downgradedMessage: t('chatBar.stages.timeoutDowngradedMessage'),
+              }),
+            );
             closeStream();
             dispatch(clearStreamingMessage());
             dispatch(
@@ -648,6 +663,7 @@ export const useSendMessageStream = ({
       armSilenceTimer,
       dispatch,
       enqueueSnackbar,
+      store,
       t,
       onDone,
       onError,

@@ -2085,6 +2085,9 @@
         "providerOpenrouter": "OpenRouter",
         "noResults": "Keine Modelle passen zu \"{{query}}\""
       },
+      "stages": {
+        "timeoutDowngradedMessage": "Suche länger als erwartet — Antwort aus alternativen Quellen"
+      },
       "searchDepth": {
         "ariaLabel": "Suchtiefe",
         "title": "Suchtiefe",

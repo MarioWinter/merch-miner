@@ -211,17 +211,17 @@ Skill: `/frontend` (primary) + `/backend` mini-edit (niche-agent test update).
 
 Skill: `/frontend` with hard scope lock to `chatBarSlice` + unit tests.
 
-- [ ] T10.1: Locate `chatBarSlice.ts` `done` reducer (or wherever the stream-done action is handled).
-- [ ] T10.2: Add downgrade logic: scan current `thinking_stages`; for each stage with `status === 'warning'` AND `reason.startsWith('tool_timeout')` AND `final_answer.length > 200`: set status `'info'`, rewrite message to i18n key `chatBar.stages.timeoutDowngradedMessage`.
-- [ ] T10.3: Ensure the rewritten stages are PERSISTED in the action payload that the backend reads back on session reload (verify `thinking_stages` JSON is overwritten on session save).
-- [ ] T10.4: Unit tests:
+- [x] T10.1: Locate `chatBarSlice.ts` `done` reducer (or wherever the stream-done action is handled).
+- [x] T10.2: Add downgrade logic: scan current `thinking_stages`; for each stage with `status === 'warning'` AND `reason.startsWith('tool_timeout')` AND `final_answer.length > 200`: set status `'info'`, rewrite message to i18n key `chatBar.stages.timeoutDowngradedMessage`.
+- [x] T10.3: Ensure the rewritten stages are PERSISTED in the action payload that the backend reads back on session reload (verify `thinking_stages` JSON is overwritten on session save).
+- [x] T10.4: Unit tests:
   - Warning + substantive answer (>200 chars) → downgraded.
   - Warning + tiny answer (≤200 chars) → stays warning.
   - No warning → no change.
   - Multiple warning stages → all downgraded together.
-- [ ] T10.5: Add i18n keys `chatBar.stages.timeoutDowngradedMessage` in de/en.
-- [ ] T10.6: `npm run lint && npx tsc --noEmit && npm run test -- --run`.
-- [ ] T10.7: Flip AC-7-1 through AC-7-6 + EC-7-1 through EC-7-3 to `[x]`.
+- [x] T10.5: Add i18n keys `chatBar.stages.timeoutDowngradedMessage` in de/en.
+- [x] T10.6: `npm run lint && npx tsc --noEmit && npm run test -- --run`.
+- [x] T10.7: Flip AC-7-1 through AC-7-6 + EC-7-1 through EC-7-3 to `[x]`.
 
 ---
 
