@@ -2084,6 +2084,19 @@
         "searchPlaceholder": "Modelle suchen…",
         "providerOpenrouter": "OpenRouter",
         "noResults": "Keine Modelle passen zu \"{{query}}\""
+      },
+      "searchDepth": {
+        "ariaLabel": "Suchtiefe",
+        "title": "Suchtiefe",
+        "tooltip": "Suchtiefe — derzeit: {{mode}}",
+        "option_speed": "Schnell",
+        "option_balanced": "Ausgewogen",
+        "option_quality": "Tief",
+        "hint_speed": "Standard. Schnellste Antwort, niedrigster Credit-Verbrauch.",
+        "hint_balanced": "Etwas tiefere Recherche, ~3x Credit-Verbrauch.",
+        "hint_quality": "Maximale Recherche, kann ~10x Credits kosten und länger dauern.",
+        "warn_quality_long": "Tiefere Recherche kann länger als 2 Min dauern",
+        "cost_warning": "Achtung: jede Anfrage verbraucht mehr Credits"
       }
     },
     "commands": {

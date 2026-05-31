@@ -268,22 +268,22 @@ The FIX-chat-vane-bigfix work hardcoded `mode='speed'` for ALL Vane calls to cap
 - As a cost-conscious operator, I want the default to stay `speed` so casual chats don't burn credits.
 
 ### Acceptance Criteria
-- [ ] AC-9-1: New IconButton + dropdown in the chat input bar's right-side cluster, positioned BETWEEN the Model-Picker and the Attachment button. Icon: `@mui/icons-material/Speed` or `Tune`.
-- [ ] AC-9-2: Click opens a popover with 3 radio options:
+- [x] AC-9-1: New IconButton + dropdown in the chat input bar's right-side cluster, positioned BETWEEN the Model-Picker and the Attachment button. Icon: `@mui/icons-material/Speed` or `Tune`.
+- [x] AC-9-2: Click opens a popover with 3 radio options:
   - **Schnell** (default) — "1 ScraperOps credit pro Chat, sofortige Antwort"
   - **Ausgewogen** — "2-5 credits, breitere Quellen-Abdeckung"
   - **Tief** — "5-10 credits, umfassende Recherche, längere Antwortzeit"
-- [ ] AC-9-3: Selected state persists in Redux `chatBarSlice.searchMode: 'speed' | 'balanced' | 'quality'` (re-add this slot that was REMOVED in PROJ-20 — per its spec comment).
-- [ ] AC-9-4: Frontend sends `&optimization_mode=<value>` query param on stream URL (GET) or in body (POST). Backend already validates + maps to Vane's `optimizationMode`.
-- [ ] AC-9-5: Default state = `'speed'`. Saved in localStorage per workspace so user's preference survives reload.
-- [ ] AC-9-6: When mode != `'speed'`, the dropdown icon shows a small badge (similar to Sources-button) indicating "active non-default". Badge gone on `'speed'`.
-- [ ] AC-9-7: Tooltip on the button: "Suchtiefe — derzeit: <mode>". On hover.
-- [ ] AC-9-8: The niche-chat-agent's `web_search` tool currently hardcodes `mode='speed'`. Update to respect the per-message setting via existing `model_override` plumbing OR add a new `search_mode` parameter through the same path. Per `feedback_skills_must_follow_rules`, the agent test that asserts `mode='speed'` must be updated to accept the param.
+- [x] AC-9-3: Selected state persists in Redux `chatBarSlice.searchMode: 'speed' | 'balanced' | 'quality'` (re-add this slot that was REMOVED in PROJ-20 — per its spec comment).
+- [x] AC-9-4: Frontend sends `&optimization_mode=<value>` query param on stream URL (GET) or in body (POST). Backend already validates + maps to Vane's `optimizationMode`.
+- [x] AC-9-5: Default state = `'speed'`. Saved in localStorage per workspace so user's preference survives reload.
+- [x] AC-9-6: When mode != `'speed'`, the dropdown icon shows a small badge (similar to Sources-button) indicating "active non-default". Badge gone on `'speed'`.
+- [x] AC-9-7: Tooltip on the button: "Suchtiefe — derzeit: <mode>". On hover.
+- [x] AC-9-8: The niche-chat-agent's `web_search` tool currently hardcodes `mode='speed'`. Update to respect the per-message setting via existing `model_override` plumbing OR add a new `search_mode` parameter through the same path. Per `feedback_skills_must_follow_rules`, the agent test that asserts `mode='speed'` must be updated to accept the param.
 
 ### Edge Cases
-- [ ] EC-9-1: Old chat session was created with a saved `search_mode` that's no longer valid (typo / removed) → frontend falls back to `'speed'`. localStorage cleaned on next save.
-- [ ] EC-9-2: User picks `'quality'` and the resulting search takes >120s (Vane SearXNG-timeout, even with fork-patch) → standard `tool_timeout` handling kicks in. Tooltip warns: "Tiefere Recherche kann länger als 2 Min dauern".
-- [ ] EC-9-3: Cost-warning shown ONCE on first switch away from `'speed'` (snackbar "Achtung: jede Anfrage verbraucht mehr Credits"). Dismissible, never shown again.
+- [x] EC-9-1: Old chat session was created with a saved `search_mode` that's no longer valid (typo / removed) → frontend falls back to `'speed'`. localStorage cleaned on next save.
+- [x] EC-9-2: User picks `'quality'` and the resulting search takes >120s (Vane SearXNG-timeout, even with fork-patch) → standard `tool_timeout` handling kicks in. Tooltip warns: "Tiefere Recherche kann länger als 2 Min dauern".
+- [x] EC-9-3: Cost-warning shown ONCE on first switch away from `'speed'` (snackbar "Achtung: jede Anfrage verbraucht mehr Credits"). Dismissible, never shown again.
 
 ---
 

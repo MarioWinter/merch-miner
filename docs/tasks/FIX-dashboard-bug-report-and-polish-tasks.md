@@ -193,17 +193,17 @@ Skill: `/backend` then `/frontend`, separately invoked.
 
 Skill: `/frontend` (primary) + `/backend` mini-edit (niche-agent test update).
 
-- [ ] T9.1: Re-add `chatBarSlice.searchMode: 'speed' | 'balanced' | 'quality'` slot (was removed per PROJ-20 spec). Default `'speed'`. Add reducer `setSearchMode`. Persist via existing localStorage middleware keyed `${workspaceId}:chat-search-mode`.
-- [ ] T9.2: Create `components/MultiPurposeDrawer/panels/ChatInputBar/partials/SearchDepthPicker.tsx` — IconButton + Popover + 3 radio options with cost-per-chat hints per spec AC-9-2. Tooltip text per AC-9-7. Badge when non-default (Sources-button pattern).
-- [ ] T9.3: Wire SearchDepthPicker into ChatInputBar's right cluster (between Model-Picker + Attachment).
-- [ ] T9.4: Update `useSendMessageStream.ts` to read `chatBarSlice.searchMode` and append `&optimization_mode=<mode>` to stream URL (GET) and include in body (POST).
-- [ ] T9.5: Cost-warning snackbar shown ONCE on first switch away from speed per session (use `useRef` + localStorage flag `seen-cost-warning`).
-- [ ] T9.6: Backend `niche_chat_agent.py:web_search` — remove hardcoded `mode='speed'`; read from per-message param via the existing `model_override` plumbing OR add a new `search_mode` parameter to the tool's closure context. Document in code.
-- [ ] T9.7: Update existing test `test_calls_vane_with_speed_mode_for_cost_control` in `test_niche_chat_agent.py` to either assert speed-default OR assert mode-pass-through (whichever T9.6 implements).
-- [ ] T9.8: Add unit test for SearchDepthPicker: 3 options selectable, state persists, badge shows when non-default.
-- [ ] T9.9: i18n keys under `chatBar.searchDepth.*`.
-- [ ] T9.10: `npm run lint && npx tsc --noEmit && npm run test -- --run` + backend `pytest agent_app/tests/test_niche_chat_agent.py`.
-- [ ] T9.11: Flip AC-9-1 through AC-9-8 + EC-9-1 through EC-9-3 to `[x]`.
+- [x] T9.1: Re-add `chatBarSlice.searchMode: 'speed' | 'balanced' | 'quality'` slot (was removed per PROJ-20 spec). Default `'speed'`. Add reducer `setSearchMode`. Persist via existing localStorage middleware keyed `${workspaceId}:chat-search-mode`.
+- [x] T9.2: Create `components/MultiPurposeDrawer/panels/ChatInputBar/partials/SearchDepthPicker.tsx` — IconButton + Popover + 3 radio options with cost-per-chat hints per spec AC-9-2. Tooltip text per AC-9-7. Badge when non-default (Sources-button pattern).
+- [x] T9.3: Wire SearchDepthPicker into ChatInputBar's right cluster (between Model-Picker + Attachment).
+- [x] T9.4: Update `useSendMessageStream.ts` to read `chatBarSlice.searchMode` and append `&optimization_mode=<mode>` to stream URL (GET) and include in body (POST).
+- [x] T9.5: Cost-warning snackbar shown ONCE on first switch away from speed per session (use `useRef` + localStorage flag `seen-cost-warning`).
+- [x] T9.6: Backend `niche_chat_agent.py:web_search` — remove hardcoded `mode='speed'`; read from per-message param via the existing `model_override` plumbing OR add a new `search_mode` parameter to the tool's closure context. Document in code.
+- [x] T9.7: Update existing test `test_calls_vane_with_speed_mode_for_cost_control` in `test_niche_chat_agent.py` to either assert speed-default OR assert mode-pass-through (whichever T9.6 implements).
+- [x] T9.8: Add unit test for SearchDepthPicker: 3 options selectable, state persists, badge shows when non-default.
+- [x] T9.9: i18n keys under `chatBar.searchDepth.*`.
+- [x] T9.10: `npm run lint && npx tsc --noEmit && npm run test -- --run` + backend `pytest agent_app/tests/test_niche_chat_agent.py`.
+- [x] T9.11: Flip AC-9-1 through AC-9-8 + EC-9-1 through EC-9-3 to `[x]`.
 
 ---
 

@@ -56,6 +56,8 @@ import {
   setFollowUps,
   setStreamingSloganPayload,
   promoteStreamingSloganPayload,
+  selectSearchMode,
+  type SearchMode,
 } from '@/store/chatBarSlice';
 import { clearAuth } from '@/store/authSlice';
 import { searchApi } from '@/store/searchSlice';
@@ -115,17 +117,22 @@ interface UseSendMessageStreamReturn {
 }
 
 /**
- * Build the POST stream URL. Body is the JSON payload; URL is just the
- * session-scoped endpoint (no query string).
+ * Build the POST stream URL. Body is the JSON payload; `optimization_mode`
+ * is duplicated as a query param (FIX-dashboard-bug-report-and-polish Item 9)
+ * so the backend can read it from the URL even if a future migration moves
+ * the chat stream back to GET/EventSource.
  *
  * `apiBase` mirrors the original buildStreamUrl logic: on prod the frontend
  * lives on a different subdomain than the API, so we need `VITE_API_URL`
  * for absolute targeting. In dev the empty string keeps it relative and the
  * Vite proxy handles routing.
  */
-const buildStreamUrl = (sessionId: string): string => {
+const buildStreamUrl = (sessionId: string, searchMode?: SearchMode): string => {
   const apiBase = import.meta.env.VITE_API_URL ?? '';
-  return `${apiBase}/api/chat/sessions/${sessionId}/messages/stream/`;
+  const base = `${apiBase}/api/chat/sessions/${sessionId}/messages/stream/`;
+  if (!searchMode) return base;
+  const params = new URLSearchParams({ optimization_mode: searchMode });
+  return `${base}?${params.toString()}`;
 };
 
 interface StreamRequestBody {
@@ -134,10 +141,12 @@ interface StreamRequestBody {
   niche_id?: string;
   attachment_ids?: string[];
   model?: string;
+  /** FIX-dashboard-bug-report-and-polish Item 9 — Vane optimization mode. */
+  optimization_mode?: SearchMode;
 }
 
 /** Build the JSON body matching `ChatStreamRequestSerializer` on the backend. */
-const buildRequestBody = (args: StartArgs): StreamRequestBody => {
+const buildRequestBody = (args: StartArgs, searchMode?: SearchMode): StreamRequestBody => {
   const body: StreamRequestBody = { content: args.content };
   if (args.mode_override) body.mode_override = args.mode_override;
   if (args.niche_id) body.niche_id = args.niche_id;
@@ -145,6 +154,7 @@ const buildRequestBody = (args: StartArgs): StreamRequestBody => {
     body.attachment_ids = args.attachment_ids;
   }
   if (args.model) body.model = args.model;
+  if (searchMode) body.optimization_mode = searchMode;
   return body;
 };
 
@@ -238,6 +248,9 @@ export const useSendMessageStream = ({
   const activeWorkspaceId = useAppSelector(
     (s) => s.workspace.activeWorkspaceId,
   );
+  // FIX-dashboard-bug-report-and-polish Item 9 — forward the per-user Vane
+  // optimization-mode preference. Backend defaults to 'speed' when omitted.
+  const searchMode = useAppSelector(selectSearchMode);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const isStreamingRef = useRef(false);
@@ -348,8 +361,8 @@ export const useSendMessageStream = ({
       closeStream();
       dispatch(clearStreamingMessage());
 
-      const url = buildStreamUrl(effectiveSessionId);
-      const body = buildRequestBody(args);
+      const url = buildStreamUrl(effectiveSessionId, searchMode);
+      const body = buildRequestBody(args, searchMode);
 
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
@@ -629,6 +642,7 @@ export const useSendMessageStream = ({
     [
       sessionId,
       activeWorkspaceId,
+      searchMode,
       closeStream,
       scheduleFlush,
       armSilenceTimer,

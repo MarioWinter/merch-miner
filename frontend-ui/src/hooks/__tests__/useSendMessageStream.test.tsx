@@ -313,6 +313,7 @@ describe('useSendMessageStream', () => {
     expect(JSON.parse(calledInit.body as string)).toEqual({
       content: 'hello world',
       mode_override: 'chat',
+      optimization_mode: 'speed',
     });
   });
 

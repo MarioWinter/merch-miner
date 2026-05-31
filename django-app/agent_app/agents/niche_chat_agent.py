@@ -380,6 +380,7 @@ def _render_tool_descriptions(tools: list[Any]) -> str:
 
 def _build_tools(
     workspace, niche, model_override=None, search_sources=None,
+    search_mode='speed',
 ) -> list:
     """Construct the 9 tools bound to ``(workspace, niche)`` via closure.
 
@@ -449,16 +450,19 @@ def _build_tools(
                 # real sources for the agent to cite. Without this the
                 # tool always returned `[]` for sources and the LLM had
                 # no concrete material to ground its answer on.
-                # Cost control 2026-05-30 — `speed` mode tells Vane's
-                # research-mode to skip aggressive query-expansion. With
-                # `balanced` (the prior default) we observed one chat
-                # question expanding into 30–50 sub-queries, each of which
-                # is a ScraperOps credit. `speed` keeps it to ~3–8
-                # sub-queries — same answer quality for our POD-niche use
-                # case, ~10x lower ScraperOps spend.
+                # Cost control 2026-05-30 — `speed` is the DEFAULT mode for
+                # Vane's research-mode to skip aggressive query-expansion.
+                # With `balanced` we observed one chat question expanding
+                # into 30–50 sub-queries (each = 1 ScraperOps credit);
+                # `speed` keeps it to ~3–8 — same answer quality for our
+                # POD-niche use case, ~10x lower spend.
+                # FIX-dashboard Phase 9: per-message `search_mode` comes
+                # from the SearchDepthPicker in the chat input bar; user
+                # can opt into `balanced` / `quality` when they need
+                # deeper research and accept the cost.
                 resp = service.search_collected(
                     query=query,
-                    mode='speed',
+                    mode=search_mode,
                     model=model_override,
                     sources=search_sources,
                 )
@@ -992,7 +996,7 @@ def _build_tools(
 
 def build_niche_chat_agent(
     workspace, niche_id, session_id: str,
-    model_override=None, search_sources=None,
+    model_override=None, search_sources=None, search_mode='speed',
 ):
     """Compile the niche-chat ReAct agent for one user turn.
 
@@ -1024,6 +1028,7 @@ def build_niche_chat_agent(
         workspace, niche,
         model_override=model_override,
         search_sources=search_sources,
+        search_mode=search_mode,
     )
 
     # AC-Ops-LG-3 — per-request LLM, NOT a module-level singleton.
@@ -1148,7 +1153,7 @@ def _is_chunk_list(value: Any) -> bool:
 
 def run_chat(
     session, message: str,
-    model_override=None, search_sources=None,
+    model_override=None, search_sources=None, search_mode='speed',
 ):
     """Yield SSE event dicts for one niche-chat turn.
 
@@ -1198,6 +1203,7 @@ def run_chat(
             session.workspace, niche.id, str(session.id),
             model_override=model_override,
             search_sources=search_sources,
+            search_mode=search_mode,
         )
 
         # PROJ-29 Phase 1J BUG-5 — load prior turns from THIS session so the

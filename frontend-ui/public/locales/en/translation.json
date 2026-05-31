@@ -2854,6 +2854,19 @@
         "searchPlaceholder": "Search models…",
         "providerOpenrouter": "OpenRouter",
         "noResults": "No models match \"{{query}}\""
+      },
+      "searchDepth": {
+        "ariaLabel": "Search depth",
+        "title": "Search depth",
+        "tooltip": "Search depth — current: {{mode}}",
+        "option_speed": "Speed",
+        "option_balanced": "Balanced",
+        "option_quality": "Quality",
+        "hint_speed": "Default. Fastest answer, lowest credit cost.",
+        "hint_balanced": "Deeper research, ~3x credit cost.",
+        "hint_quality": "Maximum research; up to ~10x credit cost and slower.",
+        "warn_quality_long": "Deeper research can take >2 min",
+        "cost_warning": "Note: each request consumes more credits"
       }
     },
     "commands": {

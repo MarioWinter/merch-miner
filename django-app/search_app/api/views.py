@@ -1361,6 +1361,7 @@ class ChatSessionMessageStreamView(APIView):
                     session, content,
                     model_override=model_override,
                     search_sources=search_sources,
+                    search_mode=search_mode,
                 )
                 for evt in _wrap_with_heartbeat(inner):
                     event_name = evt.get('event')
