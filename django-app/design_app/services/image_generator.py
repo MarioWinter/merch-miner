@@ -186,22 +186,28 @@ def _bg_color_instruction(background_color: str | None) -> str:
 
 
 def _aspect_ratio_instruction(aspect_ratio: str | None, model_name: str) -> str:
-    """Render the trailing aspect-ratio instruction line for Gemini models.
+    """Render the trailing aspect-ratio instruction line.
 
-    Gemini's image-preview endpoint silently ignores ``width``/``height``/
-    ``size`` parameters today — it only honors ``modalities``. To get the
-    user's chosen aspect ratio to actually influence the output, we inject
-    a plain-text directive into the user prompt instead. Inspired by the
-    way ``_bg_color_instruction`` already appends a colour-targeting line.
+    Two model families silently ignore size parameters in chat-completion-
+    style image generation through OpenRouter and fall back to 1024×1024:
+      * Gemini (modalities-only — no width/height/size accepted)
+      * OpenAI gpt-5-image / gpt-5.4-image-2 (verified 2026-05-31: source
+        944×1136, requested ``size: "1024x1536"``, output was 1024×1024).
 
-    Returns empty string for non-Gemini models (they receive the ratio via
-    real API params — ``size`` for OpenAI, ``width``/``height`` for
-    Flux/Seedream) and for the 1:1 default (no need to spell out the
-    obvious + keeps payloads byte-identical for legacy callers).
+    For both families we inject a plain-text directive into the user prompt
+    so the model has at least a textual signal to honour. Not guaranteed —
+    treat as best-effort. Users who need pixel-accurate dimensions should
+    pick a FLUX.2 / Seedream model (those use the width/height branch and
+    honour them natively).
+
+    Returns empty string for Flux/Seedream (they receive the ratio via the
+    real ``width``/``height`` API params) and for the 1:1 default (no need
+    to spell out the obvious + keeps payloads byte-identical for legacy
+    callers).
     """
     if not aspect_ratio or aspect_ratio == '1:1':
         return ''
-    if model_name not in _GEMINI_MODELS:
+    if model_name not in _GEMINI_MODELS and model_name not in _OPENAI_MODELS:
         return ''
     dims = ASPECT_RATIO_DIMS.get(aspect_ratio)
     if not dims:

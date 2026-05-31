@@ -35,24 +35,27 @@ const ALL_RATIOS: readonly AspectRatio[] = [
   '1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3', '5:6',
 ];
 
-// OpenAI image-gen accepts only 3 fixed sizes (1024², 1024×1536, 1536×1024).
-// We surface ONLY the ratios that map cleanly to those sizes — anything else
-// would be snapped server-side via `_openai_size_for_dims` and the user
-// might be surprised by the result. Hide them from the dropdown.
-const OPENAI_NATIVE_RATIOS: readonly AspectRatio[] = ['1:1', '3:2', '2:3'];
-
 /**
  * Per-model whitelist of aspect ratios surfaced in the Generation panel.
  *
- * Gemini ignores size params entirely; we inject a text directive into the
- * prompt instead. Honoring is best-effort and not pixel-accurate, but the
- * FULL set is at least "accepted" — so show all + add no visual filter.
- * Same applies to FLUX.2 / Seedream / Flux 1.1 (honor arbitrary dims).
+ * Honesty note (verified empirically 2026-05-31): when these models are
+ * called via OpenRouter's chat-completion-style image endpoint (which we
+ * use for everything via the `messages` payload shape), BOTH Gemini AND
+ * OpenAI silently ignore size/width/height params and fall back to 1024².
+ * Our only signal that works is the text-directive injected by
+ * `_aspect_ratio_instruction` in the backend — best-effort, not pixel-
+ * accurate. FLUX.2 / Seedream go through a different param branch and
+ * honour width/height natively.
+ *
+ * Therefore: ALL families get the full set in the dropdown. Filtering
+ * OpenAI to "officially supported" sizes would falsely imply those 3
+ * work better than the others — they don't. For pixel-accurate ratios
+ * the user should pick a FLUX.2 model (badge / hint pending future UX).
  */
 export const MODEL_SUPPORTED_RATIOS: Record<DesignModel, readonly AspectRatio[]> = {
-  'openai/gpt-5-image':                                OPENAI_NATIVE_RATIOS,
-  'openai/gpt-5-image-mini':                           OPENAI_NATIVE_RATIOS,
-  'openai/gpt-5.4-image-2':                            OPENAI_NATIVE_RATIOS,
+  'openai/gpt-5-image':                                ALL_RATIOS,
+  'openai/gpt-5-image-mini':                           ALL_RATIOS,
+  'openai/gpt-5.4-image-2':                            ALL_RATIOS,
   'google/gemini-3.1-flash-preview-image-generation':  ALL_RATIOS,
   'google/gemini-3-pro-preview-image-generation':      ALL_RATIOS,
   'google/gemini-2.5-flash-preview-image-generation':  ALL_RATIOS,
