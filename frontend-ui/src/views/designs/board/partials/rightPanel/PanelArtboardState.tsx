@@ -141,18 +141,23 @@ const PanelArtboardState = ({
   // PROJ-27 — Single-design upscale via the same shared hook used by
   // PanelMultiState. designIds=[artboard.designId] when present.
   const upscalableDesignIds = artboard.designId ? [artboard.designId] : [];
-  const upscale = useUpscaleSelection({
-    designIds: upscalableDesignIds,
-    hasMaybeUpscaled: artboard.kind === 'ai' && upscalableDesignIds.length > 0,
-  });
 
-  // PROJ-27 — Fetch design metadata so we can detect whether an upscaled file
-  // exists (gates the Compare button). RTK Query caches by id.
+  // PROJ-27 — Fetch design metadata FIRST so we can detect whether an upscaled
+  // file actually exists (gates the Compare button AND drives the Re-Upscale
+  // confirm dialog). Bug-fix 2026-05-31: previously `hasMaybeUpscaled` was a
+  // heuristic on `artboard.kind === 'ai'` — that's ALWAYS true for AI designs
+  // so the confirm dialog fired on every upscale click, even on never-
+  // upscaled designs. Now reads the real `upscaled_file` flag.
   const { data: linkedDesigns } = useGetDesignsByIdsQuery(
     upscalableDesignIds,
     { skip: upscalableDesignIds.length === 0 },
   );
   const linkedDesign = linkedDesigns?.[0] ?? null;
+
+  const upscale = useUpscaleSelection({
+    designIds: upscalableDesignIds,
+    hasMaybeUpscaled: !!linkedDesign?.upscaled_file,
+  });
   const hasUpscaled = !!linkedDesign?.upscaled_file;
   const [compareOpen, setCompareOpen] = useState(false);
 

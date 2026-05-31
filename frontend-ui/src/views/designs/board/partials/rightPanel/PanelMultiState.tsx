@@ -98,17 +98,22 @@ const PanelMultiState = ({
     () => selectedArtboards.map((a) => a.designId).filter((d): d is string => !!d),
     [selectedArtboards],
   );
-  const upscale = useUpscaleSelection({
-    designIds: upscalableDesignIds,
-    hasMaybeUpscaled: upscalableDesignIds.length > 0 && aiCount > 0,
-  });
 
   // PROJ-27 — Compare carousel: pull design metadata for selection so we can
-  // build the items array for the modal. RTK Query caches by id.
+  // build the items array for the modal. RTK Query caches by id. Moved BEFORE
+  // useUpscaleSelection so we can drive `hasMaybeUpscaled` from real
+  // `upscaled_file` data instead of an AI-kind heuristic (bug-fix 2026-05-31
+  // — the heuristic fired the confirm dialog on every bulk upscale because
+  // every AI artboard counts, even ones never upscaled).
   const { data: linkedDesigns } = useGetDesignsByIdsQuery(
     upscalableDesignIds,
     { skip: upscalableDesignIds.length === 0 },
   );
+
+  const upscale = useUpscaleSelection({
+    designIds: upscalableDesignIds,
+    hasMaybeUpscaled: (linkedDesigns ?? []).some((d) => !!d.upscaled_file),
+  });
   const compareItems = useMemo(
     () =>
       (linkedDesigns ?? [])
@@ -245,7 +250,9 @@ const PanelMultiState = ({
       <BulkReUpscaleDialog
         open={upscale.confirmOpen}
         totalCount={upscalableDesignIds.length}
-        alreadyUpscaledCount={aiCount}
+        alreadyUpscaledCount={
+          (linkedDesigns ?? []).filter((d) => !!d.upscaled_file).length
+        }
         onCancel={upscale.closeConfirm}
         onSkipAlreadyUpscaled={upscale.confirmSkip}
         onReupscaleAll={upscale.confirmReplace}
