@@ -12,9 +12,9 @@
 
 ## Phase 0 — Setup
 
-- [ ] T0.1: Confirm PR #101 status with user before starting (`fix/chat-focus-border-and-tool-timeout`). If still open, decide: rebase this branch on PR #101's branch OR wait for #101 to merge first to avoid conflict in `niche_chat_agent.py` and `ChatInputBar/index.tsx`.
-- [ ] T0.2: `git checkout main && git pull --ff-only && git checkout -b fix/dashboard-bug-report-and-polish` (per `feedback_post_merge_branching`).
-- [ ] T0.3: Read `.claude/rules/general.md`, `frontend.md`, `backend.md`, `security.md` before any code change. Each implementation skill MUST restate this.
+- [x] T0.1: Confirm PR #101 status with user before starting (`fix/chat-focus-border-and-tool-timeout`). If still open, decide: rebase this branch on PR #101's branch OR wait for #101 to merge first to avoid conflict in `niche_chat_agent.py` and `ChatInputBar/index.tsx`.
+- [x] T0.2: `git checkout main && git pull --ff-only && git checkout -b fix/dashboard-bug-report-and-polish` (per `feedback_post_merge_branching`).
+- [x] T0.3: Read `.claude/rules/general.md`, `frontend.md`, `backend.md`, `security.md` before any code change. Each implementation skill MUST restate this.
 
 ---
 
@@ -229,7 +229,7 @@ Skill: `/frontend` with hard scope lock to `chatBarSlice` + unit tests.
 
 Skill: `/qa`.
 
-- [ ] T11.1: Read latest spec (`features/FIX-dashboard-bug-report-and-polish.md`). Re-verify EVERY AC + EC checkbox by running the relevant assertion on the latest code (frontend + backend tests, manual Playwright on dev).
+- [x] T11.1: Read latest spec (`features/FIX-dashboard-bug-report-and-polish.md`). Re-verify EVERY AC + EC checkbox by running the relevant assertion on the latest code (frontend + backend tests, manual Playwright on dev).
 - [ ] T11.2: Security audit checklist:
   - Workspace isolation on `/api/feedback/reports/` list endpoint (cross-workspace cannot read).
   - Superuser-only PATCH on report status/admin_notes.
@@ -242,8 +242,8 @@ Skill: `/qa`.
 - [ ] T11.6: Playwright on dev: navigate to `/settings`, scroll through all 4 sections, anchor nav highlights active section. Old `/settings/billing` redirects to `/settings#billing`.
 - [ ] T11.7: Visual verify on dev: DrawerLayoutToggle no longer clipped by drawer tab-strip.
 - [ ] T11.8: Visual verify on dev: chat-streaming border (existing PR #101 fix) NOT covered by red focus border (assuming PR #101 is merged before this).
-- [ ] T11.9: Add QA section to spec file with results table (pass / fail per Item).
-- [ ] T11.10: Status flip `features/INDEX.md` from `Planned` → `In Review` once QA pass.
+- [x] T11.9: Add QA section to spec file with results table (pass / fail per Item).
+- [x] T11.10: Status flip `features/INDEX.md` from `Planned` → `In Review` once QA pass.
 
 ---
 

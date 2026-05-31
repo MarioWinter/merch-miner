@@ -546,3 +546,47 @@ NONE new on the Django side. NONE new on the frontend side. All Item implementat
 
 Single optional addition if not present: a Markdown front-matter parser for Python. Recommendation: use `pyyaml` (very likely already installed via Django; verify in /backend phase).
 
+
+---
+
+# QA Report (Phase 11)
+
+**Date:** 2026-05-31
+**Branch:** `fix/dashboard-bug-report-and-polish`
+**Commits ahead of main:** 13 (one feat per Phase, plus the cross-repo Vane fork commit)
+**Test suites at QA time:** frontend 1747/1762 pass (15 skipped, 0 fail), backend 92/92 in touched modules pass (full suite running)
+
+## Per-Item Results
+
+| Item | Phase | Status | Notes |
+|---|---|---|---|
+| 1 — Topbar Bug/Feature Report Modal | 4 + 5 | ✅ Pass | 14 ACs + 4 ECs flipped; 32 backend tests + 7 frontend tests pass. Playwright submit-flow on dev pending (T11.3). |
+| 2 — DrawerLayoutToggle z-index | 2 | ✅ Pass | 1-line change; AC-2-3 (visual prod verify) remains pending until after deploy. |
+| 3 — Roadmap Widget | 7a + 7b | ✅ Pass | 11/11 ACs+ECs flipped; 12 backend + 5 frontend tests pass; seeded docs/roadmap_user_facing.md with 5 items. |
+| 4 — Changelog Widget (LLM-translated) | 8a + 8b | ✅ Pass | 11/12 ACs+ECs flipped; 19 backend + 4 frontend tests pass; EC-4-5 (lang-detect retry) explicitly deferred per Phase 8a brief, EC-4-3 (1:1 instead of 3-5 summary) accepted tradeoff. |
+| 5 — VersionBadge superuser gating | 3 | ✅ Pass | 6 new tests; `useIsSuperuser` hook reusable across the FIX (also used in Item 1 admin paths if later needed). |
+| 6 — Settings consolidation | 6 | ✅ Pass | 9/11 ACs+ECs flipped; AC-6-3 (sticky h2 in each section) + EC-6-4 (workspace admin gating) left as section-internal follow-ups conflicting with AC-6-6 (reuse unchanged) — flagged in commit. 5 new tests; full dashboard suite 15/15. |
+| 7 — Chat stage downgrade | 10 | ✅ Pass | 8/9 ACs+ECs flipped; EC-7-1 (200-char threshold brittleness) acknowledged as follow-up. Backend mirror in views.py ensures persistence (AC-7-5). 6 new slice tests. |
+| 8 — Vane fork persistent timeout | 1 | ✅ Pass | Cross-repo TS-source patch (10s → 120s) on `merch-miner-patches` branch; GHCR image rebuilt; live-verified on server. |
+| 9 — SearchDepthPicker | 9 | ✅ Pass | 11/11 ACs+ECs flipped; 9 new picker tests + 2 new backend tests; useSendMessageStream POST-body test updated for `optimization_mode`. Backend: `search_mode` threaded `run_chat → build_niche_chat_agent → _build_tools → web_search`. |
+
+## Open Pre-PR Items (transferred to Phase 12)
+
+- T11.3–T11.8 — Playwright on dev (manual verification flows). Recommended to run AFTER deploy lands.
+- AC-2-3 — visual confirm DrawerLayoutToggle is unclipped in prod
+- AC-6-3 sticky-h2 — section-internal follow-up
+- EC-6-4 workspace admin gating — section-internal follow-up
+- EC-4-5 LLM lang-detect retry — explicitly deferred to a future polish branch
+- EC-7-1 200-char threshold tuning — track if user complains in production logs
+
+## Test Suite Health
+
+- Frontend: `npm run test -- --run` → **1747 pass / 15 skipped / 0 fail** (was 1706 before this FIX; net +41 new tests across 9 items)
+- Backend (touched apps): `pytest agent_app dashboard_app feedback_app search_app` → all pass
+- TypeScript: `npx tsc -b` → clean
+- ESLint: `npx eslint <touched paths> --max-warnings=0` → clean
+
+## Status flips
+
+- `features/INDEX.md` — `Dashboard Widgets + Bug-Report Modal + Settings Merge + Polish` → **In Review**
+- All Item-1..9 ACs + ECs flipped except the explicit deferrals listed above
