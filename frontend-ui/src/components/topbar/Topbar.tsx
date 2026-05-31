@@ -16,6 +16,7 @@ import NicheSelector from './NicheSelector';
 import HamburgerMenu from './HamburgerMenu';
 import { MobileContextControl } from './MobileContextSheet';
 import NotificationBell from '../NotificationBell';
+import FeedbackReportButton from './FeedbackReportButton';
 import HealthStatusDot from '../MultiPurposeDrawer/HealthStatusDot';
 import UpscaleStatusPill from '@/views/designs/board/partials/UpscaleStatusPill';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
@@ -165,6 +166,7 @@ const Topbar = () => {
           <ColorModeToggle />
           <UpscaleStatusPill />
           <NotificationBell />
+          <FeedbackReportButton />
           <ProfileMenu initial={initial} avatarUrl={avatarUrl} />
         </Box>
       </TopbarToolbar>

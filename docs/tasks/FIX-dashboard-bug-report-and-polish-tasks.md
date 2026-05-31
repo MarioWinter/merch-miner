@@ -96,21 +96,21 @@ Skill: `/backend` with hard scope lock to NEW `feedback_app/` ONLY.
 
 Skill: `/frontend` with hard scope lock. Depends on Phase 4 API + Phase 3 `useIsSuperuser` hook.
 
-- [ ] T5.1: Locate existing topbar component file (`grep -n 'topbar-open-chat' frontend-ui/src/`) and identify where to insert the new icon-button (between notifications-bell e31 + profile-icon e35 per snapshot).
-- [ ] T5.2: Create `components/FeedbackReportButton.tsx` — IconButton with `Feedback` or `BugReport` icon, Tooltip, click handler that dispatches `setFeedbackModalOpen(true)` or local state.
-- [ ] T5.3: Create `components/FeedbackReportModal/` directory:
+- [x] T5.1: Locate existing topbar component file (`grep -n 'topbar-open-chat' frontend-ui/src/`) and identify where to insert the new icon-button (between notifications-bell e31 + profile-icon e35 per snapshot).
+- [x] T5.2: Create `components/FeedbackReportButton.tsx` — IconButton with `Feedback` or `BugReport` icon, Tooltip, click handler that dispatches `setFeedbackModalOpen(true)` or local state.
+- [x] T5.3: Create `components/FeedbackReportModal/` directory:
   - `index.tsx` — MUI Dialog wrapper, controlled open state, escape/backdrop close with confirm-discard.
   - `partials/FeedbackForm.tsx` — react-hook-form with zod schema. Fields: type (radio), title (TextField with chars-remaining helper), description (multiline TextField), screenshot upload.
   - `partials/ScreenshotUpload.tsx` — file input with size + mime client-side validation, preview thumbnail, remove button.
   - `schemas/feedbackReportSchema.ts` — zod schema (type required, title 1-200, description 1-4000).
   - `hooks/useFeedbackReport.ts` — useForm + RTK Query mutation hook.
   - `__tests__/FeedbackReportModal.test.tsx` — covers happy path, validation errors, screenshot upload, screenshot rejected (oversize / wrong mime), backdrop-close confirm dialog.
-- [ ] T5.4: Add `store/feedbackSlice.ts` — RTK Query endpoints for `createReport`, `uploadScreenshot`. Use existing axios setup pattern.
-- [ ] T5.5: Add i18n keys under `feedback.*` in `de.json` + `en.json` (modal title, form labels, button text, snackbar messages, validation errors).
-- [ ] T5.6: Wire FeedbackReportButton into the topbar component identified in T5.1. Verify position is correct visually (between e31 + e35).
-- [ ] T5.7: Snackbar (notistack) on success/error per AC-1-4.
-- [ ] T5.8: `npm run lint && npx tsc --noEmit && npm run test -- --run`.
-- [ ] T5.9: Flip AC-1-1 through AC-1-4, AC-1-11 through AC-1-14 to `[x]`.
+- [x] T5.4: Add `store/feedbackSlice.ts` — RTK Query endpoints for `createReport`, `uploadScreenshot`. Use existing axios setup pattern.
+- [x] T5.5: Add i18n keys under `feedback.*` in `de.json` + `en.json` (modal title, form labels, button text, snackbar messages, validation errors).
+- [x] T5.6: Wire FeedbackReportButton into the topbar component identified in T5.1. Verify position is correct visually (between e31 + e35).
+- [x] T5.7: Snackbar (notistack) on success/error per AC-1-4.
+- [x] T5.8: `npm run lint && npx tsc --noEmit && npm run test -- --run`.
+- [x] T5.9: Flip AC-1-1 through AC-1-4, AC-1-11 through AC-1-14 to `[x]`.
 
 ---
 

@@ -3883,5 +3883,62 @@
         }
       }
     }
+  },
+  "feedback": {
+    "topbar": {
+      "tooltip": "Report a bug or suggest a feature"
+    },
+    "modal": {
+      "title": "Send feedback",
+      "closeAria": "Close feedback modal"
+    },
+    "form": {
+      "cancel": "Cancel",
+      "submit": "Send",
+      "type": {
+        "label": "What kind of feedback?",
+        "bug": "Bug",
+        "feature": "Feature request"
+      },
+      "title": {
+        "label": "Title",
+        "placeholder": "Short summary",
+        "charsRemaining": "{{count}} characters left"
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Describe what happened or what you'd like to see…",
+        "charsRemaining": "{{count}} characters left"
+      },
+      "screenshot": {
+        "label": "Screenshot (optional)",
+        "helper": "PNG, JPEG or WEBP up to 5 MB.",
+        "choose": "Add screenshot",
+        "replace": "Replace screenshot",
+        "uploadAria": "Upload screenshot",
+        "removeAria": "Remove screenshot",
+        "errors": {
+          "tooLarge": "File too large — max 5 MB.",
+          "wrongType": "Only PNG, JPEG or WEBP images are allowed."
+        }
+      },
+      "errors": {
+        "typeRequired": "Pick bug or feature request.",
+        "titleRequired": "Title is required.",
+        "titleTooLong": "Title must be 200 characters or fewer.",
+        "descriptionRequired": "Description is required.",
+        "descriptionTooLong": "Description must be 4000 characters or fewer."
+      }
+    },
+    "discard": {
+      "title": "Discard feedback?",
+      "message": "You have unsaved input. Discard it and close?",
+      "confirm": "Discard",
+      "cancel": "Keep editing"
+    },
+    "snackbar": {
+      "success": "Thanks! Your feedback has been sent.",
+      "error": "Could not send feedback — please try again later."
+    }
   }
 }

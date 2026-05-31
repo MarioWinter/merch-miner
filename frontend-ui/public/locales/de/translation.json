@@ -3926,5 +3926,62 @@
         }
       }
     }
+  },
+  "feedback": {
+    "topbar": {
+      "tooltip": "Bug melden oder Feature vorschlagen"
+    },
+    "modal": {
+      "title": "Hinweis senden",
+      "closeAria": "Feedback-Dialog schließen"
+    },
+    "form": {
+      "cancel": "Abbrechen",
+      "submit": "Senden",
+      "type": {
+        "label": "Was möchtest du melden?",
+        "bug": "Bug",
+        "feature": "Feature-Wunsch"
+      },
+      "title": {
+        "label": "Titel",
+        "placeholder": "Kurze Zusammenfassung",
+        "charsRemaining": "Noch {{count}} Zeichen"
+      },
+      "description": {
+        "label": "Beschreibung",
+        "placeholder": "Beschreibe, was passiert ist oder was du dir wünschst…",
+        "charsRemaining": "Noch {{count}} Zeichen"
+      },
+      "screenshot": {
+        "label": "Screenshot (optional)",
+        "helper": "PNG, JPEG oder WEBP bis 5 MB.",
+        "choose": "Screenshot hinzufügen",
+        "replace": "Screenshot ersetzen",
+        "uploadAria": "Screenshot hochladen",
+        "removeAria": "Screenshot entfernen",
+        "errors": {
+          "tooLarge": "Datei zu groß — maximal 5 MB.",
+          "wrongType": "Nur PNG, JPEG oder WEBP erlaubt."
+        }
+      },
+      "errors": {
+        "typeRequired": "Bitte Bug oder Feature wählen.",
+        "titleRequired": "Titel ist erforderlich.",
+        "titleTooLong": "Titel darf maximal 200 Zeichen haben.",
+        "descriptionRequired": "Beschreibung ist erforderlich.",
+        "descriptionTooLong": "Beschreibung darf maximal 4000 Zeichen haben."
+      }
+    },
+    "discard": {
+      "title": "Hinweis verwerfen?",
+      "message": "Du hast ungespeicherte Eingaben. Wirklich verwerfen und schließen?",
+      "confirm": "Verwerfen",
+      "cancel": "Weiter bearbeiten"
+    },
+    "snackbar": {
+      "success": "Danke! Dein Hinweis ist angekommen.",
+      "error": "Konnte Hinweis nicht senden — bitte später nochmal probieren."
+    }
   }
 }
