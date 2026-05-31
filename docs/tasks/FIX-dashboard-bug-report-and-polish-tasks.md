@@ -52,13 +52,13 @@ Skill: `/frontend` with hard scope lock to ONLY `DrawerLayoutToggle.tsx`.
 
 Skill: `/frontend` with hard scope lock to: NEW `hooks/useIsSuperuser.ts` + EDIT `components/sidebar/VersionBadge.tsx` + unit tests.
 
-- [ ] T3.1: Create `frontend-ui/src/hooks/useIsSuperuser.ts` — thin wrapper that reads `state.auth.user.is_superuser` via `useAppSelector`. Returns `boolean` (default `false` when user not loaded). Add JSDoc with single-source-of-truth comment.
-- [ ] T3.2: Create `frontend-ui/src/hooks/__tests__/useIsSuperuser.test.tsx` — tests: (a) returns `true` when superuser, (b) returns `false` when not, (c) returns `false` when auth.user is null/loading.
-- [ ] T3.3: Read `frontend-ui/src/components/sidebar/VersionBadge.tsx` to understand current shape.
-- [ ] T3.4: Refactor VersionBadge: import `useIsSuperuser`. When `false`, render `<Chip>` (no onClick, cursor default, no hover). When `true`, render existing IconButton + Dialog logic unchanged.
-- [ ] T3.5: Update VersionBadge test: add cases for both branches (superuser sees link, non-superuser sees plain chip).
-- [ ] T3.6: `npm run lint && npx tsc --noEmit && npm run test -- --run`.
-- [ ] T3.7: Flip AC-5-1 through AC-5-5 to `[x]`. Flip EC-5-1 through EC-5-3 to `[x]`.
+- [x] T3.1: Create `frontend-ui/src/hooks/useIsSuperuser.ts` — thin wrapper that reads `state.auth.user.is_superuser` via `useAppSelector`. Returns `boolean` (default `false` when user not loaded). Add JSDoc with single-source-of-truth comment.
+- [x] T3.2: Create `frontend-ui/src/hooks/__tests__/useIsSuperuser.test.tsx` — tests: (a) returns `true` when superuser, (b) returns `false` when not, (c) returns `false` when auth.user is null/loading.
+- [x] T3.3: Read `frontend-ui/src/components/sidebar/VersionBadge.tsx` to understand current shape.
+- [x] T3.4: Refactor VersionBadge: import `useIsSuperuser`. When `false`, render `<Chip>` (no onClick, cursor default, no hover). When `true`, render existing IconButton + Dialog logic unchanged.
+- [x] T3.5: Update VersionBadge test: add cases for both branches (superuser sees link, non-superuser sees plain chip).
+- [x] T3.6: `npm run lint && npx tsc --noEmit && npm run test -- --run`.
+- [x] T3.7: Flip AC-5-1 through AC-5-5 to `[x]`. Flip EC-5-1 through EC-5-3 to `[x]`.
 
 ---
 

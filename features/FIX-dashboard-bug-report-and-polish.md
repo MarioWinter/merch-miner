@@ -161,16 +161,16 @@ Sidebar bottom shows a "v0.7.0 Beta" pill button that today opens a detailed tec
 - As Mario (superuser), I want the detailed changelog popup still accessible from the version-pill so I can verify what's deployed.
 
 ### Acceptance Criteria
-- [ ] AC-5-1: Sidebar bottom pill displaying `v0.7.0 Beta` (or current version) remains visible to ALL authenticated users.
-- [ ] AC-5-2: For non-superuser: pill renders as a non-interactive Chip (`onClick` absent, `cursor: default`, no hover state). Aria-label is "App-Version v0.7.0 Beta" (no "click to open changelog").
-- [ ] AC-5-3: For superuser (Django `user.is_superuser === true`): pill renders as today — clickable IconButton, opens the detailed changelog Dialog with all the technical detail (commit shas, PR numbers, version tags, GitHub links).
-- [ ] AC-5-4: Superuser flag is fetched from `/api/user/me/` endpoint and stored in Redux `authSlice.user.is_superuser`. (Likely already there; verify in /architecture phase.)
-- [ ] AC-5-5: Conditional rendering uses the same `is_superuser` selector everywhere it gates UI (Items 1+5; reuse a single `useIsSuperuser()` hook).
+- [x] AC-5-1: Sidebar bottom pill displaying `v0.7.0 Beta` (or current version) remains visible to ALL authenticated users.
+- [x] AC-5-2: For non-superuser: pill renders as a non-interactive Chip (`onClick` absent, `cursor: default`, no hover state). Aria-label is "App-Version v0.7.0 Beta" (no "click to open changelog").
+- [x] AC-5-3: For superuser (Django `user.is_superuser === true`): pill renders as today — clickable IconButton, opens the detailed changelog Dialog with all the technical detail (commit shas, PR numbers, version tags, GitHub links).
+- [x] AC-5-4: Superuser flag is fetched from `/api/user/me/` endpoint and stored in Redux `authSlice.user.is_superuser`. (Likely already there; verify in /architecture phase.)
+- [x] AC-5-5: Conditional rendering uses the same `is_superuser` selector everywhere it gates UI (Items 1+5; reuse a single `useIsSuperuser()` hook).
 
 ### Edge Cases
-- [ ] EC-5-1: `is_superuser` flag missing on first render (auth slice still loading) → pill renders in non-interactive mode (fail-closed). After auth resolves, re-renders with link if applicable.
-- [ ] EC-5-2: A user is demoted from superuser mid-session → on next render the pill loses its link. No special re-fetch needed; Redux state already reflects current user via session refresh.
-- [ ] EC-5-3: When opened on a slow connection, the click action is a no-op for non-superusers — no spinner, no toast, just visually inert.
+- [x] EC-5-1: `is_superuser` flag missing on first render (auth slice still loading) → pill renders in non-interactive mode (fail-closed). After auth resolves, re-renders with link if applicable.
+- [x] EC-5-2: A user is demoted from superuser mid-session → on next render the pill loses its link. No special re-fetch needed; Redux state already reflects current user via session refresh.
+- [x] EC-5-3: When opened on a slow connection, the click action is a no-op for non-superusers — no spinner, no toast, just visually inert.
 
 ---
 
