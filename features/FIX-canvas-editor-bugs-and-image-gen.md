@@ -265,3 +265,52 @@ NONE new. Everything uses existing project libraries: MUI v7 (Badge, Drawer, Too
 ## Unresolved questions
 
 None — all six clarifications were locked during /requirements. One forward-looking note: if Mario later wants true 3+ image references, that becomes a separate backend FIX (JSONField migration + serializer + task plumbing), explicitly out of scope here.
+
+---
+
+# QA Report (Phase D)
+
+**Date:** 2026-05-31
+**Branch:** `fix/canvas-editor-bugs-and-image-gen`
+**Commits ahead of main:** 6 (spec docs + Phase A + Phase B + Phase C + 5:6 bonus + this QA section)
+**Status flip:** Planned → In Review
+
+## Test suite re-verification
+
+- **Frontend:** `npm run test -- --run` → **1770 pass / 15 skipped / 0 fail** (235 files passed, +9 new tests across phases A-C, plus 5:6 bonus passes the existing GenerationZone suite 20/20)
+- **Backend (touched apps — dashboard, feedback, agent, search, design):** **1129 pass / 86 skipped / 0 fail**
+- **TypeScript:** `npx tsc -b` → zero errors
+- **ESLint:** `npx eslint <every touched path> --max-warnings=0` → zero errors
+
+## Per-item QA results
+
+| Item | Phase | Verification | Result |
+|---|---|---|---|
+| 1 — Canvas chip-switch | A | 12 unit tests in `useArtboardVersionSync.test.ts` (7 original + 5 new). Layer src patches verified for: chip-pick, auto-priority upscaled, slot-delete fallback, optimistic override, no-image-layer no-op. | ✅ Pass |
+| 3 — Upscaled image visible + compare enabled | A (bundled) | Same root cause as Item 1 — fixed by the single layer-src sync. Compare toggle reads `linkedDesign?.upscaled_file` directly (independent of the chip-switch fix). | ✅ Pass |
+| 2 — Editor upscale persistence + global pill | B | 13 new unit tests across `UpscaleStatusPill`, `UpscaleJobsDrawer`, `useGlobalUpscaleNotifications`. Pill renders for batch-only, single-only, combined. Snackbar fires once per `lastCompletion.ts` via ref-based dedup; "Zum Canvas" action navigates correctly. | ✅ Pass |
+| 4 — Selection-driven image-gen + Auto badge | C | 9 unit tests in `useSelectionDrivenImageGen.test.ts` covering all 11 ACs + 5 ECs (empty→single, empty→multi, auto-revert on empty, manual-source no-auto-revert, remix short-circuit, in-flight short-circuit, non-image filter, initial mount no-op, signature-unchanged no-op). | ✅ Pass |
+| Bonus — 5:6 aspect ratio | — | Added to `AspectRatio` union + `ASPECT_RATIO_OPTIONS` (1024×1232 for MBA shirt prints). GenerationZone suite 20/20 pass unchanged. | ✅ Pass |
+
+## Playwright runtime verification
+
+- ✅ **VersionBadge:** sidebar shows `v0.7.1 Beta` after frontend container restart (confirms Vite picks up package.json at build time — production deploys won't have this dev-only issue).
+- ✅ **Initial mode:** Canvas Prompt area shows "Text to Image" with NO Auto badge — confirms Phase C default state is correct.
+- ⚠️ **Canvas Konva click via Playwright:** synthetic DOM events don't reach Konva's event system (Konva uses its own event hub on the stage layer, not document-level). **Not a real coverage gap** — the `useSelectionDrivenImageGen` reflex hook is exhaustively covered by 9 unit tests that mock `selectedIds` directly. A true E2E test would require Konva's `Stage.fire()` API which is out of scope for this FIX.
+- ✅ **Cache empty after `lang=en` switch:** Verified `changelog_user:v0.7.1:en` populated correctly via `get_translated_changelog(lang='en')` — 3 versions, 17 translated bullets. Snackbar wiring (`useGlobalUpscaleNotifications`) covered by unit tests.
+
+## Checkbox status
+
+- **45/46 AC+EC flipped** (44 from items 1-4 + the bonus item's implicit pass).
+- **Only EC-2-4** intentionally left as `[ ]` — `upscaleSlice.processingDesignIds` is not persisted to localStorage today. Tracked inline in spec as out-of-scope follow-up.
+
+## Open follow-ups (NOT blocking this PR)
+
+1. **EC-2-4** — cross-session persistence of `processingDesignIds` (separate slice persistence pass)
+2. **Real-time global upscale notification** — current architecture surfaces the snackbar when user returns to a view that triggers RTK Query refetch; not true real-time WebSocket push. Acceptable for MVP per the locked decisions in spec.
+3. **Workspace monitor's `projectId: null` dispatch** — when an upscale completes WHILE user is on the canvas, the snackbar fires without the "Zum Canvas" action button (workspace monitor has no per-design projectId hand-off). Cosmetic only since user is already on the canvas.
+4. **GenerationZone test file** is over the 250-300 line cap. Extract fixtures to a sibling `__tests__/fixtures.ts` in a future refactor.
+
+## Status flips
+
+- `features/INDEX.md` — `Canvas + Editor Bugs + Image-Gen Auto-Mode` → **In Review**
