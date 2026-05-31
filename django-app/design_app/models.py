@@ -105,6 +105,7 @@ class DesignGenerationRun(models.Model):
         NANO_BANANA = 'google/gemini-2.5-flash-preview-image-generation', 'Nano Banana'
         GPT5_IMAGE = 'openai/gpt-5-image', 'GPT-5 Image'
         GPT5_MINI = 'openai/gpt-5-image-mini', 'GPT-5 Mini'
+        GPT54_IMAGE_2 = 'openai/gpt-5.4-image-2', 'GPT-5.4 Image 2'
         FLUX_PRO = 'black-forest-labs/flux-1.1-pro', 'Flux 1.1 Pro'
         SEEDREAM = 'bytedance-seed/seedream-4.5', 'Seedream 4.5'
 

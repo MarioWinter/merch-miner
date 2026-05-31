@@ -5,7 +5,8 @@ export type DesignModel =
   | 'google/gemini-3.1-flash-preview-image-generation'
   | 'google/gemini-3-pro-preview-image-generation'
   | 'openai/gpt-5-image'
-  | 'openai/gpt-5-image-mini';
+  | 'openai/gpt-5-image-mini'
+  | 'openai/gpt-5.4-image-2';
 
 export type DesignStatus = 'pending' | 'approved' | 'rejected' | 'failed';
 

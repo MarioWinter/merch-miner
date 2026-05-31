@@ -119,6 +119,11 @@ MODEL_MAP = {
         'supports_system_role': True,
         'supports_seed': True,
     },
+    'openai/gpt-5.4-image-2': {
+        'openrouter_id': 'openai/gpt-5.4-image-2',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
     'black-forest-labs/flux-1.1-pro': {
         'openrouter_id': 'black-forest-labs/flux-1.1-pro',
         'supports_system_role': True,
@@ -217,6 +222,7 @@ _OPENAI_MODELS = {
     'gpt_image',
     'openai/gpt-5-image',
     'openai/gpt-5-image-mini',
+    'openai/gpt-5.4-image-2',
 }
 
 # Models that support multimodal input (image + text)
@@ -230,6 +236,7 @@ MULTIMODAL_MODELS = {
     'gpt_image',
     'openai/gpt-5-image',
     'openai/gpt-5-image-mini',
+    'openai/gpt-5.4-image-2',
 }
 
 
