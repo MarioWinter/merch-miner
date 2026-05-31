@@ -134,20 +134,20 @@ Users have no in-app way to learn about what's new. Today the `CHANGELOG.md` is 
 
 ### Acceptance Criteria
 - [ ] AC-4-1: New panel on the Dashboard view titled "Was ist neu" / "What's new" (i18n).
-- [ ] AC-4-2: Backend GET `/api/dashboard/changelog/` reads `CHANGELOG.md` (the release-please generated file), extracts the 3 most-recent version sections, sends each commit-line to an LLM (OpenRouter, model from env `CHANGELOG_TRANSLATE_MODEL` default `openai/gpt-4o-mini` for cost), gets back user-benefit copy.
-- [ ] AC-4-3: LLM prompt explicitly: rewrite as ≤2 sentences in German, focus on user benefit not feature name, drop commit-shas + PR numbers + scope prefixes. Example in prompt: "feat(chat): niche-agent web_search now gets real sources via streaming (#100)" → "Chat-Suche liefert jetzt deutlich mehr und bessere Web-Quellen, ideal für tiefere Recherche."
-- [ ] AC-4-4: Result is CACHED for 6 hours in Redis keyed by `changelog_user:v<latest-tag>` so repeated dashboard loads don't re-bill the LLM. Cache invalidated on tag change.
+- [x] AC-4-2: Backend GET `/api/dashboard/changelog/` reads `CHANGELOG.md` (the release-please generated file), extracts the 3 most-recent version sections, sends each commit-line to an LLM (OpenRouter, model from env `CHANGELOG_TRANSLATE_MODEL` default `openai/gpt-4o-mini` for cost), gets back user-benefit copy.
+- [x] AC-4-3: LLM prompt explicitly: rewrite as ≤2 sentences in German, focus on user benefit not feature name, drop commit-shas + PR numbers + scope prefixes. Example in prompt: "feat(chat): niche-agent web_search now gets real sources via streaming (#100)" → "Chat-Suche liefert jetzt deutlich mehr und bessere Web-Quellen, ideal für tiefere Recherche."
+- [x] AC-4-4: Result is CACHED for 6 hours in Redis keyed by `changelog_user:v<latest-tag>` so repeated dashboard loads don't re-bill the LLM. Cache invalidated on tag change.
 - [ ] AC-4-5: Panel renders grouped by version: `v0.7.0 (vor 2 Tagen)` heading, then a bullet list of user-benefit copy. NO commit shas, NO PR numbers, NO GitHub links.
-- [ ] AC-4-6: Panel visible to ALL authenticated users (no gating). The technical detail link (PR numbers etc.) stays inside Item 5's superuser-only changelog popup.
+- [x] AC-4-6: Panel visible to ALL authenticated users (no gating). The technical detail link (PR numbers etc.) stays inside Item 5's superuser-only changelog popup.
 - [ ] AC-4-7: Empty state — if CHANGELOG.md unavailable or LLM error, panel shows "Updates folgen in Kürze" (i18n).
 
 ### Edge Cases
-- [ ] EC-4-1: LLM call fails (OpenRouter down, rate-limit) → backend returns the most-recent version section title + a generic "Verbesserungen in v<x.y.z>" placeholder. Logs warning, retries next cache miss.
-- [ ] EC-4-2: CHANGELOG.md has 50+ versions → backend only processes top-3 versions to keep LLM cost bounded.
-- [ ] EC-4-3: Same release contains 20+ commits → LLM is given them all in a single batch prompt; result is a 3–5 bullet summary (not 1:1 per commit).
-- [ ] EC-4-4: User loads dashboard before any release exists → CHANGELOG.md missing → empty state.
+- [x] EC-4-1: LLM call fails (OpenRouter down, rate-limit) → backend returns the most-recent version section title + a generic "Verbesserungen in v<x.y.z>" placeholder. Logs warning, retries next cache miss.
+- [x] EC-4-2: CHANGELOG.md has 50+ versions → backend only processes top-3 versions to keep LLM cost bounded.
+- [x] EC-4-3: Same release contains 20+ commits → LLM is given them all in a single batch prompt; result is a 3–5 bullet summary (not 1:1 per commit).
+- [x] EC-4-4: User loads dashboard before any release exists → CHANGELOG.md missing → empty state.
 - [ ] EC-4-5: LLM hallucinates English when prompted in German → cache validates with a quick language-detect (just `lang_in_first_word == 'de'`); on mismatch, retries once with stronger language directive.
-- [ ] EC-4-6: Cost overrun — at default frequency (cache 6h, top-3 versions, ~5 commits each = ~15 LLM lines per cache refresh × 4 refreshes per day = ~60 LLM calls/day) the cost is ~$0.003/day. Bounded by cache TTL.
+- [x] EC-4-6: Cost overrun — at default frequency (cache 6h, top-3 versions, ~5 commits each = ~15 LLM lines per cache refresh × 4 refreshes per day = ~60 LLM calls/day) the cost is ~$0.003/day. Bounded by cache TTL.
 
 ---
 

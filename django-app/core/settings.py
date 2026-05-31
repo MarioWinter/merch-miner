@@ -311,6 +311,12 @@ OPENROUTER_BASE_URL = os.environ.get(
     'OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1',
 )
 OPENROUTER_AGENT_API_KEY = os.environ.get('OPENROUTER_AGENT_API_KEY', '')
+# FIX-dashboard Item 4: model used by changelog_translator to convert
+# technical commit bullets into German user-benefit copy. Default = cheap
+# gpt-4o-mini through OpenRouter. Override via env to upgrade quality.
+CHANGELOG_TRANSLATE_MODEL = os.environ.get(
+    'CHANGELOG_TRANSLATE_MODEL', 'openai/gpt-4o-mini',
+)
 AGENT_BUDGET_WARNING_THRESHOLD = os.environ.get('AGENT_BUDGET_WARNING_THRESHOLD', '')
 # EC-15: Per-sub-agent timeout for orchestrator delegate calls (seconds, default 10 min)
 AGENT_SUBAGENT_TIMEOUT_SEC = int(os.environ.get('AGENT_SUBAGENT_TIMEOUT_SEC', '600'))

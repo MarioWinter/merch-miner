@@ -38,6 +38,9 @@ from dashboard_app.services.roadmap_loader import (
     load_roadmap,
     roadmap_last_modified,
 )
+from dashboard_app.services.changelog_translator import (
+    get_translated_changelog,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -387,3 +390,29 @@ class RoadmapView(APIView):
             'items': items,
             'last_updated': last_modified.isoformat() if last_modified else None,
         })
+
+
+class ChangelogView(APIView):
+    """
+    GET /api/dashboard/changelog/ — top-3 versions, LLM-translated to German.
+
+    Source: ``CHANGELOG.md`` (release-please generated). Each commit-bullet is
+    rewritten into ≤2-sentence German user-benefit copy via OpenRouter, then
+    Redis-cached for 6h keyed by the latest version tag.
+
+    Visible to ALL authenticated users; no workspace gating (per AC-4-6).
+    """
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            versions = get_translated_changelog()
+        except Exception:
+            logger.exception('Changelog translation failed')
+            return Response(
+                {'error': 'Failed to load changelog.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({'versions': versions})

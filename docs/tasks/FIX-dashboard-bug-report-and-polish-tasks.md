@@ -167,16 +167,16 @@ Skill: `/backend` then `/frontend`, separately invoked.
 Skill: `/backend` then `/frontend`, separately invoked.
 
 ### Phase 8a — Backend
-- [ ] T8.1: Create `dashboard_app/services/changelog_translator.py`:
+- [x] T8.1: Create `dashboard_app/services/changelog_translator.py`:
   - Reads `CHANGELOG.md` (relative to BASE_DIR), extracts top-3 version sections via regex.
   - For each version, batch-calls `niche_research_app.graph.llm.invoke()` with a prompt that asks for ≤2-sentence German user-benefit copy per commit, returns as a list.
   - Redis-cache results keyed by `changelog_user:v<latest-tag>` with 6h TTL (use Django cache backend already on Redis).
   - Returns shape: `[{version, date, items: ["bullet1", "bullet2", …]}]`.
   - Robust error path: LLM failure → fallback `[{version, date, items: ["Verbesserungen in dieser Version"]}]`. Logs warning.
-- [ ] T8.2: Add `dashboard_app/api/views.py::ChangelogView` (APIView GET). `IsAuthenticated`. Calls the translator service.
-- [ ] T8.3: Add env var `CHANGELOG_TRANSLATE_MODEL` to `core/settings.py` + `.env.template` (default `openai/gpt-4o-mini`).
-- [ ] T8.4: Tests: `test_changelog_translator.py` — mocks LLM, asserts top-3 versions selected, cache key shape, fallback on LLM error, language-detect retry.
-- [ ] T8.5: Register URL in `dashboard_app/api/urls.py`.
+- [x] T8.2: Add `dashboard_app/api/views.py::ChangelogView` (APIView GET). `IsAuthenticated`. Calls the translator service.
+- [x] T8.3: Add env var `CHANGELOG_TRANSLATE_MODEL` to `core/settings.py` + `.env.template` (default `openai/gpt-4o-mini`).
+- [x] T8.4: Tests: `test_changelog_translator.py` — mocks LLM, asserts top-3 versions selected, cache key shape, fallback on LLM error, language-detect retry.
+- [x] T8.5: Register URL in `dashboard_app/api/urls.py`.
 
 ### Phase 8b — Frontend
 - [ ] T8.6: Create `views/dashboard/partials/ChangelogWidget/`:

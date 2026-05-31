@@ -11,6 +11,7 @@ from dashboard_app.api.views import (
     AgentAnalyticsExportView,
     SearchAnalyticsExportView,
     RoadmapView,
+    ChangelogView,
 )
 
 urlpatterns = [
@@ -31,4 +32,7 @@ urlpatterns = [
 
     # Roadmap (Item 3 — visible to all authenticated users)
     path('dashboard/roadmap/', RoadmapView.as_view(), name='dashboard-roadmap'),
+
+    # Changelog (Item 4 — LLM-translated to German, visible to all authenticated users)
+    path('dashboard/changelog/', ChangelogView.as_view(), name='dashboard-changelog'),
 ]
