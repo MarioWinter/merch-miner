@@ -121,6 +121,16 @@ const Shell = styled(Box, {
   '&:focus-within': {
     borderColor: theme.vars.palette.primary.main,
   },
+  // While the streaming-border overlay is animating, suppress the static
+  // focus border so the rotating ring isn't covered by a solid red frame.
+  // The overlay itself provides the visual feedback; doubling up reads as
+  // a bug to the user (reported 2026-05-30).
+  '&[data-streaming="true"]:focus-within': {
+    borderColor: theme.vars.palette.divider,
+  },
+  '&[data-streaming="true"]': {
+    borderColor: theme.vars.palette.divider,
+  },
   // Phase 7.5 — drag-over visual feedback when files are dragged over.
   '&[data-drag-over="true"]': {
     borderColor: theme.vars.palette.primary.main,
@@ -350,6 +360,7 @@ const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(
         appearance={appearance}
         data-appearance={appearance}
         data-drag-over={isDragOver ? 'true' : undefined}
+        data-streaming={isStreaming ? 'true' : undefined}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
