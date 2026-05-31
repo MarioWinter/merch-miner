@@ -62,22 +62,25 @@ const BG_COLOR_OPTIONS: Array<{ value: BackgroundColor; hex: string }> = [
   { value: 'neon_green', hex: '#39FF14' },
 ];
 
+// Display order: newest version first (proxy for release date when exact
+// dates aren't tracked here). Keep MODELS + MODEL_LABELS in sync with the
+// equivalent registry in `ModelSelector.tsx`.
 const MODEL_LABELS: Record<DesignModel, string> = {
+  'openai/gpt-5.4-image-2': 'GPT-5.4 Image 2',
   'google/gemini-3.1-flash-preview-image-generation': 'Nano Banana 2',
   'google/gemini-3-pro-preview-image-generation': 'Nano Banana Pro',
-  'google/gemini-2.5-flash-preview-image-generation': 'Nano Banana',
   'openai/gpt-5-image': 'GPT-5 Image',
   'openai/gpt-5-image-mini': 'GPT-5 Mini',
-  'openai/gpt-5.4-image-2': 'GPT-5.4 Image 2',
+  'google/gemini-2.5-flash-preview-image-generation': 'Nano Banana',
 };
 
 const MODELS: DesignModel[] = [
+  'openai/gpt-5.4-image-2',
   'google/gemini-3.1-flash-preview-image-generation',
   'google/gemini-3-pro-preview-image-generation',
-  'google/gemini-2.5-flash-preview-image-generation',
   'openai/gpt-5-image',
   'openai/gpt-5-image-mini',
-  'openai/gpt-5.4-image-2',
+  'google/gemini-2.5-flash-preview-image-generation',
 ];
 
 const IMAGES_MIN = 1;
