@@ -3,7 +3,63 @@ import { renderHook } from '@testing-library/react';
 import useArtboardVersionSync, {
   type VersionSlot,
 } from '../useArtboardVersionSync';
-import type { ArtboardData, Design } from '../../types';
+import type { ArtboardData, CanvasElement, Design } from '../../types';
+
+const makeImageLayer = (
+  overrides: Partial<CanvasElement<'image'>> = {},
+): CanvasElement<'image'> => ({
+  id: 'img_d-1',
+  type: 'image',
+  x: 0,
+  y: 0,
+  width: 280,
+  height: 280,
+  rotation: 0,
+  scaleX: 1,
+  scaleY: 1,
+  opacity: 1,
+  visible: true,
+  locked: false,
+  zIndex: 0,
+  name: 'Image',
+  ...overrides,
+  props: {
+    src: 'https://x.test/original.png',
+    naturalWidth: 280,
+    naturalHeight: 280,
+    ...(overrides.props ?? {}),
+  },
+});
+
+const makeTextLayer = (
+  id = 'txt-1',
+): CanvasElement<'text'> => ({
+  id,
+  type: 'text',
+  x: 10,
+  y: 10,
+  width: 100,
+  height: 40,
+  rotation: 0,
+  scaleX: 1,
+  scaleY: 1,
+  opacity: 1,
+  visible: true,
+  locked: false,
+  zIndex: 1,
+  name: 'Text',
+  props: {
+    text: 'hello',
+    fontFamily: 'Inter',
+    fontSize: 14,
+    fontWeight: 400,
+    fontStyle: 'normal',
+    fill: '#000000',
+    align: 'left',
+    letterSpacing: 0,
+    lineHeight: 1.2,
+  },
+});
 
 const makeArtboard = (overrides: Partial<ArtboardData> = {}): ArtboardData => ({
   id: 'ab-1',
@@ -160,5 +216,144 @@ describe('useArtboardVersionSync', () => {
     expect(update).toHaveBeenCalledWith('ab-1', {
       imageUrl: 'blob:fake/optimistic',
     });
+  });
+});
+
+// -----------------------------------------------------------------
+// Layer-src patching (Items 1 + 3 — FIX-canvas-editor-bugs-and-image-gen)
+// -----------------------------------------------------------------
+
+describe('useArtboardVersionSync — layer src patching', () => {
+  it('user pick → patches first image layer src + imageUrl in one call', () => {
+    const design = makeDesign({
+      image_file: 'https://x.test/original.png',
+      processed_file: 'https://x.test/processed.png',
+      bg_removed_file: 'https://x.test/bg.png',
+      upscaled_file: 'https://x.test/upscaled.png',
+    });
+    const imgLayer = makeImageLayer({
+      props: {
+        src: 'https://x.test/original.png',
+        naturalWidth: 280,
+        naturalHeight: 280,
+      },
+    });
+    const ab = makeArtboard({
+      imageUrl: 'https://x.test/original.png',
+      layers: [imgLayer],
+    });
+    const picks = new Map<string, VersionSlot>([['d-1', 'upscaled']]);
+    const update = renderSync([ab], design, picks);
+
+    expect(update).toHaveBeenCalledTimes(1);
+    const [calledId, patch] = update.mock.calls[0];
+    expect(calledId).toBe('ab-1');
+    expect(patch.imageUrl).toBe('https://x.test/upscaled.png');
+    expect(patch.layers).toBeDefined();
+    const patchedLayers = patch.layers as CanvasElement[];
+    expect(patchedLayers).toHaveLength(1);
+    const patchedImg = patchedLayers[0] as CanvasElement<'image'>;
+    expect(patchedImg.props.src).toBe('https://x.test/upscaled.png');
+    // input layer object must not have been mutated
+    expect(imgLayer.props.src).toBe('https://x.test/original.png');
+  });
+
+  it('auto-priority picks upscaled url and writes it into the image layer', () => {
+    const design = makeDesign({
+      image_file: 'https://x.test/original.png',
+      upscaled_file: 'https://x.test/upscaled.png',
+    });
+    const imgLayer = makeImageLayer({
+      props: {
+        src: 'https://x.test/original.png',
+        naturalWidth: 280,
+        naturalHeight: 280,
+      },
+    });
+    const ab = makeArtboard({
+      imageUrl: 'https://x.test/original.png',
+      layers: [imgLayer],
+    });
+    const update = renderSync([ab], design);
+
+    expect(update).toHaveBeenCalledTimes(1);
+    const patch = update.mock.calls[0][1];
+    expect(patch.imageUrl).toBe('https://x.test/upscaled.png');
+    const patchedImg = (patch.layers as CanvasElement[])[0] as CanvasElement<'image'>;
+    expect(patchedImg.props.src).toBe('https://x.test/upscaled.png');
+  });
+
+  it('delete currently-displayed slot → layer src follows the fallback slot', () => {
+    // User picked `upscaled`. After deletion the design no longer carries
+    // `upscaled_file`; auto-priority should resolve to `bg_removed` next.
+    const design = makeDesign({
+      image_file: 'https://x.test/original.png',
+      bg_removed_file: 'https://x.test/bg.png',
+      upscaled_file: '',
+    });
+    const imgLayer = makeImageLayer({
+      props: {
+        src: 'https://x.test/upscaled.png',
+        naturalWidth: 280,
+        naturalHeight: 280,
+      },
+    });
+    const ab = makeArtboard({
+      imageUrl: 'https://x.test/upscaled.png',
+      layers: [imgLayer],
+    });
+    // No active user pick — picker cleared its pick when the slot was deleted.
+    const update = renderSync([ab], design);
+
+    expect(update).toHaveBeenCalledTimes(1);
+    const patch = update.mock.calls[0][1];
+    expect(patch.imageUrl).toBe('https://x.test/bg.png');
+    const patchedImg = (patch.layers as CanvasElement[])[0] as CanvasElement<'image'>;
+    expect(patchedImg.props.src).toBe('https://x.test/bg.png');
+  });
+
+  it('optimistic override → layer src follows the optimistic url', () => {
+    const design = makeDesign({
+      image_file: 'https://x.test/original.png',
+      upscaled_file: 'https://x.test/upscaled.png',
+    });
+    const imgLayer = makeImageLayer({
+      props: {
+        src: 'https://x.test/original.png',
+        naturalWidth: 280,
+        naturalHeight: 280,
+      },
+    });
+    const ab = makeArtboard({
+      imageUrl: 'https://x.test/original.png',
+      layers: [imgLayer],
+    });
+    const optimistic = new Map<string, string>([['ab-1', 'blob:fake/optimistic']]);
+    const update = renderSync([ab], design, new Map(), optimistic);
+
+    expect(update).toHaveBeenCalledTimes(1);
+    const patch = update.mock.calls[0][1];
+    expect(patch.imageUrl).toBe('blob:fake/optimistic');
+    const patchedImg = (patch.layers as CanvasElement[])[0] as CanvasElement<'image'>;
+    expect(patchedImg.props.src).toBe('blob:fake/optimistic');
+  });
+
+  it('no image layer present → only imageUrl is patched, layers key omitted', () => {
+    const design = makeDesign({
+      image_file: 'https://x.test/original.png',
+      upscaled_file: 'https://x.test/upscaled.png',
+    });
+    // Only a text layer — no image layer at all.
+    const ab = makeArtboard({
+      imageUrl: null,
+      layers: [makeTextLayer('txt-only')],
+    });
+    const update = renderSync([ab], design);
+
+    expect(update).toHaveBeenCalledTimes(1);
+    const [calledId, patch] = update.mock.calls[0];
+    expect(calledId).toBe('ab-1');
+    expect(patch.imageUrl).toBe('https://x.test/upscaled.png');
+    expect('layers' in patch).toBe(false);
   });
 });

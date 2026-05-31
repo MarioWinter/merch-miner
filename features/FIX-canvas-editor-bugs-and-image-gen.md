@@ -27,20 +27,20 @@ Items 1 + 3 ship as ONE commit (single root cause). Item 2 depends on Item 1 (Ca
 
 ### Item 1 — Canvas version-chip switch (with Item 3)
 
-- [ ] AC-1-1: Clicking a chip in `ArtboardVersionPicker` (Original / Edit / Upscaled / BG-Removed when present) updates the rendered Konva image to the corresponding slot URL within one render frame.
-- [ ] AC-1-2: The chip's `aria-pressed` state correctly tracks the active slot (auto-priority OR user-picked).
-- [ ] AC-1-3: Clicking the chip whose URL is `image_file` (the original) while user-picked = `upscaled` reverts the render to the original file.
-- [ ] AC-1-4: Switching mode in compare-view: when the active slot has a non-empty URL and the upscaled file is present, the compare-mode toggle is enabled. Disabled otherwise.
-- [ ] AC-1-5: Fix preserves the `useArtboardVersionSync` API surface — `ab.imageUrl` continues to be the source-of-truth for export / RTK invalidation / `ArtboardListSection`. The fix patches the per-layer `props.src` IN ADDITION (Option 1 from architecture brief).
-- [ ] AC-1-6: Unit test covers: chip click → after one `act()` flush, `ab.layers[image].props.src` matches the resolved slot URL.
-- [ ] AC-1-7: Manual / no-chip-click case unchanged: artboards without any user pick still auto-resolve to highest-priority slot (`upscaled > bg_removed > processed > original`).
+- [x] AC-1-1: Clicking a chip in `ArtboardVersionPicker` (Original / Edit / Upscaled / BG-Removed when present) updates the rendered Konva image to the corresponding slot URL within one render frame.
+- [x] AC-1-2: The chip's `aria-pressed` state correctly tracks the active slot (auto-priority OR user-picked).
+- [x] AC-1-3: Clicking the chip whose URL is `image_file` (the original) while user-picked = `upscaled` reverts the render to the original file.
+- [x] AC-1-4: Switching mode in compare-view: when the active slot has a non-empty URL and the upscaled file is present, the compare-mode toggle is enabled. Disabled otherwise.
+- [x] AC-1-5: Fix preserves the `useArtboardVersionSync` API surface — `ab.imageUrl` continues to be the source-of-truth for export / RTK invalidation / `ArtboardListSection`. The fix patches the per-layer `props.src` IN ADDITION (Option 1 from architecture brief).
+- [x] AC-1-6: Unit test covers: chip click → after one `act()` flush, `ab.layers[image].props.src` matches the resolved slot URL.
+- [x] AC-1-7: Manual / no-chip-click case unchanged: artboards without any user pick still auto-resolve to highest-priority slot (`upscaled > bg_removed > processed > original`).
 
 ### Item 3 — Upscaled image visible after upscale (covered by Item 1 fix)
 
-- [ ] AC-3-1: After an upscale completes on a Canvas artboard, the artboard's image element renders the upscaled bytes (not the original).
-- [ ] AC-3-2: The Upscaled chip becomes the active selection automatically when the upscale completes (auto-priority kicks in as soon as `design.upscaled_file` is non-null).
-- [ ] AC-3-3: Compare-mode toggle becomes enabled (verified visually OR via the existing compare-mode unit test).
-- [ ] AC-3-4: Verified via the same unit test added in AC-1-6 — no separate test file required.
+- [x] AC-3-1: After an upscale completes on a Canvas artboard, the artboard's image element renders the upscaled bytes (not the original).
+- [x] AC-3-2: The Upscaled chip becomes the active selection automatically when the upscale completes (auto-priority kicks in as soon as `design.upscaled_file` is non-null).
+- [x] AC-3-3: Compare-mode toggle becomes enabled (verified visually OR via the existing compare-mode unit test).
+- [x] AC-3-4: Verified via the same unit test added in AC-1-6 — no separate test file required.
 
 ### Item 2 — Editor-upscale persistence + global progress reuse
 
@@ -72,10 +72,10 @@ Items 1 + 3 ship as ONE commit (single root cause). Item 2 depends on Item 1 (Ca
 
 ### Item 1 + 3
 
-- [ ] EC-1-1: Design has ONLY `image_file` (no upscaled/bg_removed/processed) → only one chip shows; clicking it is a no-op (already covered by `handleChipClick` early return when current = active).
-- [ ] EC-1-2: User deletes the currently-displayed slot via the trash icon → `useArtboardVersionSync` auto-falls-back to next-best slot AND the layer `props.src` follows (single fix covers both layers).
-- [ ] EC-1-3: Existing layer-reorder / layer-edit flows continue to work — they read `props.src` directly and we only PATCH it on slot-switch (Option 1 surgical), never strip the layer.
-- [ ] EC-1-4: An optimistic URL is set on the artboard (e.g. mid-pipeline upscale-overwrite) → optimistic override beats slot resolution (existing behavior preserved; layer src follows the optimistic URL too).
+- [x] EC-1-1: Design has ONLY `image_file` (no upscaled/bg_removed/processed) → only one chip shows; clicking it is a no-op (already covered by `handleChipClick` early return when current = active).
+- [x] EC-1-2: User deletes the currently-displayed slot via the trash icon → `useArtboardVersionSync` auto-falls-back to next-best slot AND the layer `props.src` follows (single fix covers both layers).
+- [x] EC-1-3: Existing layer-reorder / layer-edit flows continue to work — they read `props.src` directly and we only PATCH it on slot-switch (Option 1 surgical), never strip the layer.
+- [x] EC-1-4: An optimistic URL is set on the artboard (e.g. mid-pipeline upscale-overwrite) → optimistic override beats slot resolution (existing behavior preserved; layer src follows the optimistic URL too).
 
 ### Item 2
 

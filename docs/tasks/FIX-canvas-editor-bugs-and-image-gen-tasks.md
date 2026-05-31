@@ -13,19 +13,19 @@ Every implementation phase MUST read `.claude/rules/` + flip task/AC/EC checkbox
 
 Skill: `/frontend`, hard scope lock to `useArtboardVersionSync` + its test. Single commit covers both items (shared root cause).
 
-- [ ] TA.1: Read `views/designs/board/hooks/useArtboardVersionSync.ts` + `board/partials/ArtboardElement.tsx` + `board/utils/artboardHydration.ts` to confirm the layer-src freeze (recon already documented in spec Notes).
-- [ ] TA.2: Extend `useArtboardVersionSync`: whenever it writes a new `imageUrl` to an artboard, ALSO patch that artboard's primary image layer's `props.src` to the same URL. Applies to all three resolution paths (optimistic override, user-picked slot, auto-priority).
-- [ ] TA.3: Guard: only patch the FIRST image-type layer (the auto-created design image), never text/shape/brush layers. If no image layer exists, no-op (don't create one — hydration owns creation).
-- [ ] TA.4: Preserve `ab.imageUrl` as the public source-of-truth (export / ArtboardListSection / RTK invalidation unchanged) — AC-1-5.
-- [ ] TA.5: Verify compare-mode toggle becomes enabled once `design.upscaled_file` resolves into the rendered layer (AC-1-4 / AC-3-3). If the toggle has its own gating logic, confirm it reads the same resolved state; adjust only if it reads a stale field.
-- [ ] TA.6: Extend `views/designs/board/hooks/__tests__/useArtboardVersionSync.test.ts`:
+- [x] TA.1: Read `views/designs/board/hooks/useArtboardVersionSync.ts` + `board/partials/ArtboardElement.tsx` + `board/utils/artboardHydration.ts` to confirm the layer-src freeze (recon already documented in spec Notes).
+- [x] TA.2: Extend `useArtboardVersionSync`: whenever it writes a new `imageUrl` to an artboard, ALSO patch that artboard's primary image layer's `props.src` to the same URL. Applies to all three resolution paths (optimistic override, user-picked slot, auto-priority).
+- [x] TA.3: Guard: only patch the FIRST image-type layer (the auto-created design image), never text/shape/brush layers. If no image layer exists, no-op (don't create one — hydration owns creation).
+- [x] TA.4: Preserve `ab.imageUrl` as the public source-of-truth (export / ArtboardListSection / RTK invalidation unchanged) — AC-1-5.
+- [x] TA.5: Verify compare-mode toggle becomes enabled once `design.upscaled_file` resolves into the rendered layer (AC-1-4 / AC-3-3). If the toggle has its own gating logic, confirm it reads the same resolved state; adjust only if it reads a stale field.
+- [x] TA.6: Extend `views/designs/board/hooks/__tests__/useArtboardVersionSync.test.ts`:
   - chip-pick a slot → after one flush, the artboard's image-layer `props.src` equals the resolved slot URL (AC-1-6).
   - upscaled file appears → auto-priority makes layer src = upscaled url (AC-3-1 / AC-3-2).
   - delete currently-displayed slot → layer src follows the fallback slot (EC-1-2).
   - optimistic override → layer src follows the optimistic url (EC-1-4).
   - no image layer present → no-op, no crash.
-- [ ] TA.7: `npm run lint && npx tsc -b && npm run test -- --run` (scope to designs board tests + full suite). Zero failures.
-- [ ] TA.8: Flip AC-1-1..AC-1-7 + AC-3-1..AC-3-4 + EC-1-1..EC-1-4 to `[x]`.
+- [x] TA.7: `npm run lint && npx tsc -b && npm run test -- --run` (scope to designs board tests + full suite). Zero failures.
+- [x] TA.8: Flip AC-1-1..AC-1-7 + AC-3-1..AC-3-4 + EC-1-1..EC-1-4 to `[x]`.
 
 ---
 

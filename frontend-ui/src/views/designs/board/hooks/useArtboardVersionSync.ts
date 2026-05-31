@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import type { ArtboardData, Design } from '../types';
+import type { ArtboardData, CanvasElement, Design } from '../types';
 
 export type VersionSlot = 'original' | 'processed' | 'bg_removed' | 'upscaled';
 
@@ -38,6 +38,56 @@ const resolveLatestUrl = (design: Design): string =>
   '';
 
 /**
+ * Returns a NEW layers array where the FIRST `type === 'image'` layer has its
+ * `props.src` set to `newSrc`. All other layers (text/shape/brush/emoji) are
+ * passed through unchanged by reference. Returns `null` when no image layer
+ * exists (caller decides to omit the layers patch entirely — hydration owns
+ * image-layer creation, this hook never fabricates one).
+ *
+ * Pure: never mutates the input array or any layer object.
+ */
+const withLayerSrcPatched = (
+  layers: CanvasElement[],
+  newSrc: string,
+): CanvasElement[] | null => {
+  const idx = layers.findIndex((l) => l.type === 'image');
+  if (idx === -1) return null;
+  const target = layers[idx] as CanvasElement<'image'>;
+  if (target.props.src === newSrc) return null;
+  const patched: CanvasElement<'image'> = {
+    ...target,
+    props: { ...target.props, src: newSrc },
+  };
+  const next = layers.slice();
+  next[idx] = patched;
+  return next;
+};
+
+/**
+ * Builds + dispatches a single coherent `updateArtboard` patch:
+ * - always sets `imageUrl` to the resolved URL (when it differs)
+ * - additionally patches the FIRST image-layer's `props.src` to the same URL
+ *   so the Konva render (which reads `element.props.src`) reflects the active
+ *   version. Both fields go in one call so React sees one state transition.
+ *
+ * No-ops when neither field would change — preserves the prior "skip identical
+ * updates" behavior to avoid render loops.
+ */
+const applyResolvedUrl = (
+  ab: ArtboardData,
+  resolved: string,
+  updateArtboard: (id: string, patch: Partial<ArtboardData>) => void,
+): void => {
+  const urlChanged = resolved !== ab.imageUrl;
+  const nextLayers = withLayerSrcPatched(ab.layers, resolved);
+  if (!urlChanged && !nextLayers) return;
+  const patch: Partial<ArtboardData> = {};
+  if (urlChanged) patch.imageUrl = resolved;
+  if (nextLayers) patch.layers = nextLayers;
+  updateArtboard(ab.id, patch);
+};
+
+/**
  * Keeps each linked artboard's `imageUrl` in sync with the resolved Design
  * version. Priority order is `upscaled > bg_removed > processed > image_file`,
  * unless the user has explicitly picked a slot via the version picker.
@@ -54,9 +104,7 @@ export const useArtboardVersionSync = ({
       // Optimistic override beats both user pick and auto-priority resolution.
       const optimistic = optimisticArtboardUrls?.get(ab.id);
       if (optimistic) {
-        if (optimistic !== ab.imageUrl) {
-          updateArtboard(ab.id, { imageUrl: optimistic });
-        }
+        applyResolvedUrl(ab, optimistic, updateArtboard);
         continue;
       }
       if (!ab.designId) continue;
@@ -67,9 +115,7 @@ export const useArtboardVersionSync = ({
         ? resolveSlotUrl(design, pickedSlot)
         : resolveLatestUrl(design);
       if (!resolved) continue;
-      if (resolved !== ab.imageUrl) {
-        updateArtboard(ab.id, { imageUrl: resolved });
-      }
+      applyResolvedUrl(ab, resolved, updateArtboard);
     }
   }, [artboards, designsById, userPickedVersions, updateArtboard, optimisticArtboardUrls]);
 };
