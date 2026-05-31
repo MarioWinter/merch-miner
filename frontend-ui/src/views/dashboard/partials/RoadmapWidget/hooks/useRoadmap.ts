@@ -13,7 +13,9 @@ import { useGetRoadmapQuery, type RoadmapItem } from '@/store/dashboardSlice';
  */
 export const useRoadmap = () => {
   const { i18n } = useTranslation();
-  const lang = i18n.language?.toLowerCase().startsWith('en') ? 'en' : 'de';
+  // Only DE gets the German fields. Everything else (EN, FR, ES, …)
+  // falls back to English — matches the backend's lang validation.
+  const lang = i18n.language?.toLowerCase().startsWith('de') ? 'de' : 'en';
   const { data, isLoading, isError } = useGetRoadmapQuery({ lang });
 
   return {

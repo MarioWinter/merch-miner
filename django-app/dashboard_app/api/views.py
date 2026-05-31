@@ -380,9 +380,11 @@ class RoadmapView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        lang = request.query_params.get('lang', 'de').lower()
+        # Fallback for unsupported / missing locales is ENGLISH — only DE
+        # gets its native fields; everything else uses the EN copy.
+        lang = request.query_params.get('lang', 'en').lower()
         if lang not in ('de', 'en'):
-            lang = 'de'
+            lang = 'en'
         try:
             items = load_roadmap(lang=lang)
             last_modified = roadmap_last_modified()
@@ -414,9 +416,11 @@ class ChangelogView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        lang = request.query_params.get('lang', 'de').lower()
+        # Fallback for unsupported / missing locales is ENGLISH — only DE
+        # gets German LLM copy; everything else gets English.
+        lang = request.query_params.get('lang', 'en').lower()
         if lang not in ('de', 'en'):
-            lang = 'de'
+            lang = 'en'
         try:
             versions = get_translated_changelog(lang=lang)
         except Exception:

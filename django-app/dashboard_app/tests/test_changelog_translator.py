@@ -201,7 +201,7 @@ class TestTranslateLinesToGerman:
                 logging.WARNING, logger=changelog_translator.__name__,
             ):
                 result = changelog_translator.translate_lines_to_german(
-                    ['a', 'b', 'c'], model_name='openai/gpt-4o-mini',
+                    ['a', 'b', 'c'], model_name='openai/gpt-4o-mini', lang='de',
                 )
         assert result == [
             'Verbesserungen in dieser Version',
@@ -218,7 +218,7 @@ class TestTranslateLinesToGerman:
                 logging.WARNING, logger=changelog_translator.__name__,
             ):
                 result = changelog_translator.translate_lines_to_german(
-                    ['a', 'b'], model_name='openai/gpt-4o-mini',
+                    ['a', 'b'], model_name='openai/gpt-4o-mini', lang='de',
                 )
         assert result == [
             'Verbesserungen in dieser Version',
@@ -253,7 +253,7 @@ class TestGetTranslatedChangelog:
         cache.set('changelog_user:v0.7.1:de', cached_value, 60)
 
         with patch(_CHATOPENAI_PATH) as mock_cls:
-            result = changelog_translator.get_translated_changelog()
+            result = changelog_translator.get_translated_changelog(lang='de')
 
         assert result == cached_value
         mock_cls.assert_not_called()
@@ -272,7 +272,7 @@ class TestGetTranslatedChangelog:
             '5. Canvas Fünf'
         )
         with patch(_CHATOPENAI_PATH, return_value=instance):
-            result = changelog_translator.get_translated_changelog()
+            result = changelog_translator.get_translated_changelog(lang='de')
 
         assert len(result) == 3
         assert result[0]['version'] == '0.7.1'
@@ -299,7 +299,7 @@ class TestGetTranslatedChangelog:
         instance = MagicMock()
         instance.invoke.side_effect = RuntimeError('boom')
         with patch(_CHATOPENAI_PATH, return_value=instance):
-            result = changelog_translator.get_translated_changelog()
+            result = changelog_translator.get_translated_changelog(lang='de')
 
         placeholder = 'Verbesserungen in dieser Version'
         assert len(result) == 3
@@ -316,7 +316,7 @@ class TestGetTranslatedChangelog:
     def test_no_versions_returns_empty(self, fake_changelog_path):
         # No file -> no versions -> empty list, no cache, no LLM call.
         with patch(_CHATOPENAI_PATH) as mock_cls:
-            result = changelog_translator.get_translated_changelog()
+            result = changelog_translator.get_translated_changelog(lang='de')
         assert result == []
         mock_cls.assert_not_called()
 

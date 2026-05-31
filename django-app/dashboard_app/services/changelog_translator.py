@@ -154,7 +154,7 @@ def _parse_numbered_response(text: str) -> list[str]:
 
 
 def translate_lines(
-    lines: list[str], model_name: str, lang: str = 'de',
+    lines: list[str], model_name: str, lang: str = 'en',
 ) -> list[str]:
     """
     Translate a batch of commit-bullet lines into user-benefit copy.
@@ -169,7 +169,9 @@ def translate_lines(
     if not lines:
         return []
     if lang not in _SYSTEM_PROMPTS:
-        lang = 'de'
+        # Fallback for unsupported locales is English (only DE keeps its
+        # native prompt; everything else gets the EN copy).
+        lang = 'en'
     placeholder = _PLACEHOLDERS[lang]
 
     numbered_prompt = '\n'.join(f'{i + 1}. {line}' for i, line in enumerate(lines))
@@ -214,7 +216,7 @@ def _cache_key_for(versions: list[dict], lang: str) -> Optional[str]:
     return f'{CACHE_KEY_PREFIX}{versions[0]["version"]}:{lang}'
 
 
-def get_translated_changelog(top_n: int = 3, lang: str = 'de') -> list[dict]:
+def get_translated_changelog(top_n: int = 3, lang: str = 'en') -> list[dict]:
     """
     Return top-N changelog versions with user-benefit bullets in ``lang``.
 
@@ -230,7 +232,7 @@ def get_translated_changelog(top_n: int = 3, lang: str = 'de') -> list[dict]:
     side-by-side without invalidating each other on every dashboard load.
     """
     if lang not in _SYSTEM_PROMPTS:
-        lang = 'de'
+        lang = 'en'
     placeholder = _PLACEHOLDERS[lang]
 
     versions = load_changelog_versions(top_n=top_n)

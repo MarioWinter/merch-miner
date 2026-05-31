@@ -78,17 +78,17 @@ def _parse_front_matter(text: str) -> dict:
     return loaded if isinstance(loaded, dict) else {}
 
 
-def _validate_items(raw_items, lang: str = 'de') -> list[dict]:
+def _validate_items(raw_items, lang: str = 'en') -> list[dict]:
     """
     Filter the raw front-matter ``items`` list to dicts with required fields.
 
     Drops items missing ``title`` or ``description`` (logged as warning).
 
     ``lang`` selects the language-specific fields when present:
-      * ``'en'`` → prefer ``title_en`` / ``description_en``; fall back to
-        ``title`` / ``description`` so legacy single-language entries
-        still render.
-      * any other value → use ``title`` / ``description`` (German default).
+      * ``'de'`` → use ``title`` / ``description`` (German default fields).
+      * any other value (incl. ``'en'``) → prefer ``title_en`` /
+        ``description_en``; fall back to ``title`` / ``description`` per
+        item so partial bilingual files render.
     """
     if not isinstance(raw_items, list):
         return []
@@ -98,12 +98,12 @@ def _validate_items(raw_items, lang: str = 'de') -> list[dict]:
         if not isinstance(item, dict):
             logger.warning('Roadmap item %d is not a mapping; skipping', idx)
             continue
-        if lang == 'en':
-            title = item.get('title_en') or item.get('title')
-            description = item.get('description_en') or item.get('description')
-        else:
+        if lang == 'de':
             title = item.get('title')
             description = item.get('description')
+        else:
+            title = item.get('title_en') or item.get('title')
+            description = item.get('description_en') or item.get('description')
         if not title or not description:
             logger.warning(
                 'Roadmap item %d missing required field (title/description); skipping',
@@ -121,7 +121,7 @@ def _validate_items(raw_items, lang: str = 'de') -> list[dict]:
     return valid
 
 
-def load_roadmap(lang: str = 'de') -> list[dict]:
+def load_roadmap(lang: str = 'en') -> list[dict]:
     """
     Load the user-facing roadmap items.
 
@@ -130,6 +130,10 @@ def load_roadmap(lang: str = 'de') -> list[dict]:
     Caches result by ``(file mtime, lang)`` so the English + German variants
     coexist in-process without thrashing each other.
     """
+    # Normalize: only DE keeps its native fields; everything else maps to EN
+    # so the memo doesn't store identical copies under different locale tags.
+    if lang != 'de':
+        lang = 'en'
     path = _roadmap_path()
     try:
         mtime_ns = path.stat().st_mtime_ns

@@ -12,7 +12,9 @@ import { useGetChangelogQuery, type ChangelogVersion } from '@/store/dashboardSl
  */
 export const useChangelog = () => {
   const { i18n } = useTranslation();
-  const lang = i18n.language?.toLowerCase().startsWith('en') ? 'en' : 'de';
+  // Only DE gets the German LLM copy. Everything else (EN, FR, ES, …)
+  // falls back to English — matches the backend's lang validation.
+  const lang = i18n.language?.toLowerCase().startsWith('de') ? 'de' : 'en';
   const { data, isLoading, isError } = useGetChangelogQuery({ lang });
 
   return {
