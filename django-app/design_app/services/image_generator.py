@@ -216,6 +216,48 @@ def _aspect_ratio_instruction(aspect_ratio: str | None, model_name: str) -> str:
         "fill the full canvas at this aspect ratio with no letterboxing."
     )
 
+
+# OpenAI image-gen models only accept a fixed set of `size` values. Anything
+# else silently falls back to the 1024×1024 default — exactly the bug we hit
+# 2026-05-31 with `5:6` returning a square. We snap any user-chosen ratio to
+# the nearest supported size that preserves orientation (portrait → portrait,
+# landscape → landscape, square → square).
+_OPENAI_SUPPORTED_SIZES: tuple[tuple[int, int], ...] = (
+    (1024, 1024),  # square
+    (1024, 1536),  # portrait — 2:3
+    (1536, 1024),  # landscape — 3:2
+)
+
+
+def _openai_size_for_dims(width: int, height: int) -> str:
+    """Snap (width, height) to the nearest OpenAI-supported size.
+
+    Strategy:
+      1. Preserve orientation — portrait stays portrait, etc.
+      2. Among candidates with matching orientation, pick the one whose
+         aspect ratio is closest to the requested ratio.
+      3. If no orientation match (e.g. an unusual ratio), fall back to
+         the square 1024×1024 default.
+
+    Returned as the ``"{w}x{h}"`` string OpenAI expects in the
+    ``size`` parameter.
+    """
+    requested_ratio = width / height
+    if width > height:
+        orientation_filter = lambda w, h: w > h  # noqa: E731
+    elif width < height:
+        orientation_filter = lambda w, h: w < h  # noqa: E731
+    else:
+        return '1024x1024'
+
+    candidates = [(w, h) for w, h in _OPENAI_SUPPORTED_SIZES if orientation_filter(w, h)]
+    if not candidates:
+        return '1024x1024'
+
+    best = min(candidates, key=lambda wh: abs((wh[0] / wh[1]) - requested_ratio))
+    return f'{best[0]}x{best[1]}'
+
+
 # Aspect ratio → pixel dimensions
 ASPECT_RATIO_DIMS = {
     '1:1': (1024, 1024),
@@ -566,7 +608,11 @@ def generate_image(
     if model_name in _GEMINI_MODELS:
         payload['modalities'] = ['image', 'text']
     elif model_name in _OPENAI_MODELS:
-        payload['size'] = f'{width}x{height}'
+        # OpenAI image-gen accepts a FIXED set of sizes only — anything else
+        # falls back to 1024×1024 (square). Snap to the nearest supported
+        # size that preserves orientation so a user-picked 5:6 portrait at
+        # 1000×1200 lands at 1024×1536 instead of silently becoming square.
+        payload['size'] = _openai_size_for_dims(width, height)
         payload['quality'] = 'high'
     else:
         # Flux, Seedream, etc.
