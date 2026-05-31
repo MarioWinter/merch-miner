@@ -46,14 +46,26 @@ CACHE_KEY_PREFIX = 'changelog_user:v'
 SUCCESS_TTL_SECONDS = 60 * 60 * 6  # 6 hours per AC-4-4
 FAILURE_TTL_SECONDS = 60 * 15      # 15 minutes — short retry window on failure
 
-_PLACEHOLDER = 'Verbesserungen in dieser Version'
+_PLACEHOLDERS = {
+    'de': 'Verbesserungen in dieser Version',
+    'en': 'Improvements in this version',
+}
 
-_SYSTEM_PROMPT = (
-    'Du bist ein Produkt-Marketing-Texter für eine SaaS-App. '
-    'Übersetze jedes technische Commit-Bullet in 1–2 Sätze in DEUTSCH, '
-    'die den User-Benefit beschreiben — KEINE PROJ-IDs, KEINE Commit-SHAs, '
-    'KEIN Tech-Jargon. Antwort als nummerierte Liste in derselben Reihenfolge.'
-)
+_SYSTEM_PROMPTS = {
+    'de': (
+        'Du bist ein Produkt-Marketing-Texter für eine SaaS-App. '
+        'Übersetze jedes technische Commit-Bullet in 1–2 Sätze in DEUTSCH, '
+        'die den User-Benefit beschreiben — KEINE PROJ-IDs, KEINE '
+        'Commit-SHAs, KEIN Tech-Jargon. Antwort als nummerierte Liste in '
+        'derselben Reihenfolge.'
+    ),
+    'en': (
+        'You are a product marketing copywriter for a SaaS app. Rewrite '
+        'each technical commit bullet as 1–2 sentences in ENGLISH that '
+        'describe the user benefit — NO PROJ-IDs, NO commit SHAs, NO '
+        'tech jargon. Reply as a numbered list in the same order.'
+    ),
+}
 
 
 _CONTAINER_STATIC_DIR = Path('/srv/static_content')
@@ -141,21 +153,24 @@ def _parse_numbered_response(text: str) -> list[str]:
     return items
 
 
-def translate_lines_to_german(
-    lines: list[str], model_name: str,
+def translate_lines(
+    lines: list[str], model_name: str, lang: str = 'de',
 ) -> list[str]:
     """
-    Translate a batch of commit-bullet lines into German user-benefit copy.
+    Translate a batch of commit-bullet lines into user-benefit copy.
 
     Single LLM call regardless of input length. Returns one translated line
     per input line, in the same order. On error or count mismatch, returns
-    ``[_PLACEHOLDER] * len(lines)`` and logs a warning.
+    ``[placeholder] * len(lines)`` and logs a warning.
 
-    ``model_name`` is passed through to the embedded ChatOpenAI client (read
-    from the caller's settings rather than re-reading inside).
+    ``lang`` picks the system prompt + placeholder. Supported: ``'de'`` (default)
+    and ``'en'``. Unknown languages fall back to ``'de'``.
     """
     if not lines:
         return []
+    if lang not in _SYSTEM_PROMPTS:
+        lang = 'de'
+    placeholder = _PLACEHOLDERS[lang]
 
     numbered_prompt = '\n'.join(f'{i + 1}. {line}' for i, line in enumerate(lines))
     try:
@@ -170,12 +185,12 @@ def translate_lines_to_german(
             },
         )
         response = llm.invoke([
-            {'role': 'system', 'content': _SYSTEM_PROMPT},
+            {'role': 'system', 'content': _SYSTEM_PROMPTS[lang]},
             {'role': 'user', 'content': numbered_prompt},
         ])
     except Exception as exc:
         logger.warning('Changelog LLM call failed: %s', exc)
-        return [_PLACEHOLDER] * len(lines)
+        return [placeholder] * len(lines)
 
     content = getattr(response, 'content', '') or ''
     parsed = _parse_numbered_response(content)
@@ -184,20 +199,24 @@ def translate_lines_to_german(
             'Changelog LLM returned %d items for %d inputs; using placeholders',
             len(parsed), len(lines),
         )
-        return [_PLACEHOLDER] * len(lines)
+        return [placeholder] * len(lines)
     return parsed
 
 
-def _cache_key_for(versions: list[dict]) -> Optional[str]:
-    """Build the Redis cache key from the latest version string."""
+# Backwards-compatible alias — older tests + callers used the German-only name.
+translate_lines_to_german = translate_lines
+
+
+def _cache_key_for(versions: list[dict], lang: str) -> Optional[str]:
+    """Build the Redis cache key from the latest version + language."""
     if not versions:
         return None
-    return f'{CACHE_KEY_PREFIX}{versions[0]["version"]}'
+    return f'{CACHE_KEY_PREFIX}{versions[0]["version"]}:{lang}'
 
 
-def get_translated_changelog(top_n: int = 3) -> list[dict]:
+def get_translated_changelog(top_n: int = 3, lang: str = 'de') -> list[dict]:
     """
-    Return top-N changelog versions with German user-benefit bullets.
+    Return top-N changelog versions with user-benefit bullets in ``lang``.
 
     Result shape: ``[{version, date, items: [str, ...]}]``.
 
@@ -206,12 +225,19 @@ def get_translated_changelog(top_n: int = 3) -> list[dict]:
     - Miss + LLM success -> store with 6h TTL.
     - Miss + LLM failure -> store placeholder with 15min TTL (short retry
       window — avoids per-request retry loop while still recovering soon).
+
+    ``lang`` is folded into the Redis cache key so DE + EN renditions live
+    side-by-side without invalidating each other on every dashboard load.
     """
+    if lang not in _SYSTEM_PROMPTS:
+        lang = 'de'
+    placeholder = _PLACEHOLDERS[lang]
+
     versions = load_changelog_versions(top_n=top_n)
     if not versions:
         return []
 
-    cache_key = _cache_key_for(versions)
+    cache_key = _cache_key_for(versions, lang)
     if cache_key is not None:
         cached = cache.get(cache_key)
         if cached is not None:
@@ -233,10 +259,10 @@ def get_translated_changelog(top_n: int = 3) -> list[dict]:
             cache.set(cache_key, result, SUCCESS_TTL_SECONDS)
         return result
 
-    translated = translate_lines_to_german(
-        flat_lines, settings.CHANGELOG_TRANSLATE_MODEL,
+    translated = translate_lines(
+        flat_lines, settings.CHANGELOG_TRANSLATE_MODEL, lang=lang,
     )
-    is_failure = all(line == _PLACEHOLDER for line in translated)
+    is_failure = all(line == placeholder for line in translated)
 
     # Re-split per version using the original section lengths.
     result: list[dict] = []

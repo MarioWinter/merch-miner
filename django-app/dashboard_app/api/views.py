@@ -367,17 +367,24 @@ class SearchAnalyticsExportView(APIView):
 
 class RoadmapView(APIView):
     """
-    GET /api/dashboard/roadmap/ — user-facing roadmap items.
+    GET /api/dashboard/roadmap/?lang=de|en — user-facing roadmap items.
 
     Source: hand-curated ``docs/roadmap_user_facing.md`` (YAML front-matter).
     Visible to ALL authenticated users; no workspace gating.
+
+    ``lang`` (default ``de``) selects which language fields to emit. ``en``
+    prefers ``title_en`` / ``description_en`` per entry with a per-item
+    German fallback.
     """
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        lang = request.query_params.get('lang', 'de').lower()
+        if lang not in ('de', 'en'):
+            lang = 'de'
         try:
-            items = load_roadmap()
+            items = load_roadmap(lang=lang)
             last_modified = roadmap_last_modified()
         except Exception:
             logger.exception('Roadmap load failed')
@@ -394,11 +401,12 @@ class RoadmapView(APIView):
 
 class ChangelogView(APIView):
     """
-    GET /api/dashboard/changelog/ — top-3 versions, LLM-translated to German.
+    GET /api/dashboard/changelog/?lang=de|en — top-3 versions, LLM-rewritten.
 
     Source: ``CHANGELOG.md`` (release-please generated). Each commit-bullet is
-    rewritten into ≤2-sentence German user-benefit copy via OpenRouter, then
-    Redis-cached for 6h keyed by the latest version tag.
+    rewritten into ≤2-sentence user-benefit copy in the requested language
+    via OpenRouter, then Redis-cached for 6h keyed by ``(latest tag, lang)``
+    so DE + EN renditions don't evict each other.
 
     Visible to ALL authenticated users; no workspace gating (per AC-4-6).
     """
@@ -406,8 +414,11 @@ class ChangelogView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        lang = request.query_params.get('lang', 'de').lower()
+        if lang not in ('de', 'en'):
+            lang = 'de'
         try:
-            versions = get_translated_changelog()
+            versions = get_translated_changelog(lang=lang)
         except Exception:
             logger.exception('Changelog translation failed')
             return Response(

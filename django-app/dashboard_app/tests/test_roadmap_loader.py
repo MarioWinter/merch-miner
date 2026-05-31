@@ -149,3 +149,63 @@ def test_memo_returns_same_list_across_calls(fake_roadmap_path):
     second = roadmap_loader.load_roadmap()
     # Same object identity due to mtime-keyed memo (no disk re-read).
     assert first is second
+
+
+# ---------------------------------------------------------------------------
+# Phase 11 follow-up — language-aware loading
+# ---------------------------------------------------------------------------
+
+def test_lang_en_prefers_english_fields(fake_roadmap_path):
+    """When ``lang='en'`` and an item exposes ``title_en`` /
+    ``description_en``, those win over the German defaults."""
+    fake_roadmap_path.write_text(
+        '---\n'
+        'items:\n'
+        '  - title: "Deutscher Titel"\n'
+        '    description: "Deutsche Beschreibung."\n'
+        '    title_en: "English Title"\n'
+        '    description_en: "English description."\n'
+        '---\n',
+        encoding='utf-8',
+    )
+    items = roadmap_loader.load_roadmap(lang='en')
+    assert len(items) == 1
+    assert items[0]['title'] == 'English Title'
+    assert items[0]['description'] == 'English description.'
+
+
+def test_lang_en_falls_back_to_german_when_missing(fake_roadmap_path):
+    """English-only request still receives the German fields for entries
+    that haven't been translated yet — partial bilingual files render."""
+    fake_roadmap_path.write_text(
+        '---\n'
+        'items:\n'
+        '  - title: "Nur DE"\n'
+        '    description: "Keine EN-Variante."\n'
+        '---\n',
+        encoding='utf-8',
+    )
+    items = roadmap_loader.load_roadmap(lang='en')
+    assert items[0]['title'] == 'Nur DE'
+    assert items[0]['description'] == 'Keine EN-Variante.'
+
+
+def test_de_and_en_memos_coexist(fake_roadmap_path):
+    """Calling with different lang values stores both in the memo without
+    evicting each other."""
+    fake_roadmap_path.write_text(
+        '---\n'
+        'items:\n'
+        '  - title: "DE"\n'
+        '    description: "DE desc"\n'
+        '    title_en: "EN"\n'
+        '    description_en: "EN desc"\n'
+        '---\n',
+        encoding='utf-8',
+    )
+    de = roadmap_loader.load_roadmap(lang='de')
+    en = roadmap_loader.load_roadmap(lang='en')
+    assert de[0]['title'] == 'DE'
+    assert en[0]['title'] == 'EN'
+    # Both entries live in the memo
+    assert len(roadmap_loader._memo) == 2

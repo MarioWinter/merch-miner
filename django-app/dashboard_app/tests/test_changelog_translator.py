@@ -250,7 +250,7 @@ class TestGetTranslatedChangelog:
         cached_value = [
             {'version': '0.7.1', 'date': '2026-05-31', 'items': ['from-cache']},
         ]
-        cache.set('changelog_user:v0.7.1', cached_value, 60)
+        cache.set('changelog_user:v0.7.1:de', cached_value, 60)
 
         with patch(_CHATOPENAI_PATH) as mock_cls:
             result = changelog_translator.get_translated_changelog()
@@ -282,11 +282,11 @@ class TestGetTranslatedChangelog:
         assert result[2]['version'] == '0.6.0'
         assert result[2]['items'] == ['Canvas Fünf']
 
-        stored = cache.get('changelog_user:v0.7.1')
+        stored = cache.get('changelog_user:v0.7.1:de')
         assert stored == result
 
         # ttl() returns remaining seconds — must be close to 6h.
-        remaining = cache.ttl('changelog_user:v0.7.1')
+        remaining = cache.ttl('changelog_user:v0.7.1:de')
         assert remaining is not None
         assert changelog_translator.SUCCESS_TTL_SECONDS - 30 <= remaining <= (
             changelog_translator.SUCCESS_TTL_SECONDS
@@ -308,7 +308,7 @@ class TestGetTranslatedChangelog:
         assert all_items == [placeholder] * 5
 
         # Stored under the 15-min TTL.
-        remaining = cache.ttl('changelog_user:v0.7.1')
+        remaining = cache.ttl('changelog_user:v0.7.1:de')
         assert remaining is not None
         assert remaining <= changelog_translator.FAILURE_TTL_SECONDS
         assert remaining > changelog_translator.FAILURE_TTL_SECONDS - 30
@@ -319,3 +319,51 @@ class TestGetTranslatedChangelog:
             result = changelog_translator.get_translated_changelog()
         assert result == []
         mock_cls.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Phase 11 follow-up — language-aware translation
+# ---------------------------------------------------------------------------
+
+class TestLanguageAware:
+    """``lang='en'`` uses the English prompt + placeholder + cache slot."""
+
+    def _write(self, path):
+        path.write_text(
+            '## [0.7.1](https://example/v0.7.1) (2026-05-31)\n\n'
+            '### Bug Fixes\n\n'
+            '* one ([abc1234](https://example/c/abc1234))\n',
+            encoding='utf-8',
+        )
+
+    def test_lang_en_uses_english_system_prompt(self, fake_changelog_path):
+        self._write(fake_changelog_path)
+        instance = MagicMock()
+        instance.invoke.return_value = _llm_response('1. Cleaner UX\n')
+        with patch(_CHATOPENAI_PATH, return_value=instance):
+            result = changelog_translator.get_translated_changelog(lang='en')
+
+        # The system message must be the EN prompt.
+        called_args = instance.invoke.call_args[0][0]
+        sys_msg = next(m for m in called_args if m['role'] == 'system')
+        assert 'ENGLISH' in sys_msg['content']
+        assert result[0]['items'] == ['Cleaner UX']
+
+    def test_lang_en_cache_key_includes_en_suffix(self, fake_changelog_path):
+        self._write(fake_changelog_path)
+        instance = MagicMock()
+        instance.invoke.return_value = _llm_response('1. Cleaner UX\n')
+        with patch(_CHATOPENAI_PATH, return_value=instance):
+            changelog_translator.get_translated_changelog(lang='en')
+
+        # DE slot must NOT have been populated; EN slot must be present.
+        assert cache.get('changelog_user:v0.7.1:de') is None
+        assert cache.get('changelog_user:v0.7.1:en') is not None
+
+    def test_lang_en_failure_uses_english_placeholder(self, fake_changelog_path):
+        self._write(fake_changelog_path)
+        instance = MagicMock()
+        instance.invoke.side_effect = RuntimeError('boom')
+        with patch(_CHATOPENAI_PATH, return_value=instance):
+            result = changelog_translator.get_translated_changelog(lang='en')
+        assert result[0]['items'] == ['Improvements in this version']

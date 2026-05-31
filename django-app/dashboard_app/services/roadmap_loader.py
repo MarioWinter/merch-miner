@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 _ROADMAP_FILENAME = 'roadmap_user_facing.md'
 _FRONT_MATTER_FENCE = '---'
 
-# Module-level memo: keyed by (path, mtime_ns). Reset when file changes.
-_memo: dict[tuple[str, int], list[dict]] = {}
+# Module-level memo: keyed by (path, mtime_ns, lang). Reset when file changes.
+_memo: dict[tuple[str, int, str], list[dict]] = {}
 
 
 _CONTAINER_STATIC_DIR = Path('/srv/static_content')
@@ -78,11 +78,17 @@ def _parse_front_matter(text: str) -> dict:
     return loaded if isinstance(loaded, dict) else {}
 
 
-def _validate_items(raw_items) -> list[dict]:
+def _validate_items(raw_items, lang: str = 'de') -> list[dict]:
     """
     Filter the raw front-matter ``items`` list to dicts with required fields.
 
     Drops items missing ``title`` or ``description`` (logged as warning).
+
+    ``lang`` selects the language-specific fields when present:
+      * ``'en'`` → prefer ``title_en`` / ``description_en``; fall back to
+        ``title`` / ``description`` so legacy single-language entries
+        still render.
+      * any other value → use ``title`` / ``description`` (German default).
     """
     if not isinstance(raw_items, list):
         return []
@@ -92,8 +98,12 @@ def _validate_items(raw_items) -> list[dict]:
         if not isinstance(item, dict):
             logger.warning('Roadmap item %d is not a mapping; skipping', idx)
             continue
-        title = item.get('title')
-        description = item.get('description')
+        if lang == 'en':
+            title = item.get('title_en') or item.get('title')
+            description = item.get('description_en') or item.get('description')
+        else:
+            title = item.get('title')
+            description = item.get('description')
         if not title or not description:
             logger.warning(
                 'Roadmap item %d missing required field (title/description); skipping',
@@ -111,13 +121,14 @@ def _validate_items(raw_items) -> list[dict]:
     return valid
 
 
-def load_roadmap() -> list[dict]:
+def load_roadmap(lang: str = 'de') -> list[dict]:
     """
     Load the user-facing roadmap items.
 
     Returns a list of ``{title, description, priority?}`` dicts in file order.
     Returns ``[]`` if the file is missing, malformed, or contains no valid items.
-    Caches result by file mtime for the lifetime of the process.
+    Caches result by ``(file mtime, lang)`` so the English + German variants
+    coexist in-process without thrashing each other.
     """
     path = _roadmap_path()
     try:
@@ -129,7 +140,7 @@ def load_roadmap() -> list[dict]:
         logger.warning('Cannot stat roadmap file %s: %s', path, exc)
         return []
 
-    cache_key = (str(path), mtime_ns)
+    cache_key = (str(path), mtime_ns, lang)
     cached = _memo.get(cache_key)
     if cached is not None:
         return cached
@@ -141,9 +152,13 @@ def load_roadmap() -> list[dict]:
         return []
 
     front_matter = _parse_front_matter(text)
-    items = _validate_items(front_matter.get('items'))
+    items = _validate_items(front_matter.get('items'), lang=lang)
 
-    _memo.clear()  # Drop stale entries before storing the fresh result.
+    # Drop stale entries (different mtime) before storing the fresh result,
+    # but keep peer-language entries that share this mtime.
+    for key in list(_memo.keys()):
+        if key[:2] != cache_key[:2]:
+            del _memo[key]
     _memo[cache_key] = items
     return items
 

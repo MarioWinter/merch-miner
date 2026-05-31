@@ -79,18 +79,20 @@ export const dashboardApi = createApi({
       providesTags: ['SearchAnalytics'],
     }),
 
-    getRoadmap: builder.query<RoadmapResponse, void>({
-      query: () => ({
+    getRoadmap: builder.query<RoadmapResponse, { lang?: 'de' | 'en' } | void>({
+      query: (arg) => ({
         url: '/api/dashboard/roadmap/',
         method: 'GET',
+        params: arg?.lang ? { lang: arg.lang } : undefined,
       }),
       providesTags: ['Roadmap'],
     }),
 
-    getChangelog: builder.query<ChangelogResponse, void>({
-      query: () => ({
+    getChangelog: builder.query<ChangelogResponse, { lang?: 'de' | 'en' } | void>({
+      query: (arg) => ({
         url: '/api/dashboard/changelog/',
         method: 'GET',
+        params: arg?.lang ? { lang: arg.lang } : undefined,
       }),
       providesTags: ['Changelog'],
     }),
