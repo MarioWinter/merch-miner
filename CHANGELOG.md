@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.8.0](https://github.com/MarioWinter/merch-miner/compare/v0.7.1...v0.8.0) (2026-05-31)
+
+
+### Features
+
+* **chat:** downgrade tool_timeout warnings → info on substantive answer ([426d7f1](https://github.com/MarioWinter/merch-miner/commit/426d7f151e41398ca0c4b430ed0a2138d79f5172))
+* **chat:** SearchDepthPicker — per-message speed/balanced/quality ([b785246](https://github.com/MarioWinter/merch-miner/commit/b785246146c8d183511d8e7112f9399e1093bc24))
+* **dashboard:** changelog widget — "Was ist neu" panel ([69b9527](https://github.com/MarioWinter/merch-miner/commit/69b9527c43c8925f90a201f4d7a110659df305eb))
+* **dashboard:** changelog widget backend — LLM-translated bullets ([a46c7c2](https://github.com/MarioWinter/merch-miner/commit/a46c7c218a4d94ceef9b55d1a3bc2b7fdec19300))
+* **dashboard:** roadmap widget — Geplante Features panel ([3f223e0](https://github.com/MarioWinter/merch-miner/commit/3f223e0a2f280cd4ba4c82ac61e572dea3edb18d))
+* **dashboard:** roadmap widget backend + user-facing roadmap file ([d63724c](https://github.com/MarioWinter/merch-miner/commit/d63724c168eb5e9c16753ac5f60b0cacde7e508f))
+* **feedback:** BugFeatureReport model + API + email job (backend) ([da4b992](https://github.com/MarioWinter/merch-miner/commit/da4b9923d9ab3169693bb51d897d44f921ff9add))
+* **feedback:** topbar bug/feature-report modal + form + RTK Query (frontend) ([039a643](https://github.com/MarioWinter/merch-miner/commit/039a643313b89b42aad88091dc7c7601e8bf960e))
+* **settings:** consolidate 4 sections onto one scrollable page ([d7b8b1d](https://github.com/MarioWinter/merch-miner/commit/d7b8b1dfd4ed4cd84b2baf778664df34f9e29076))
+
+
+### Bug Fixes
+
+* **ci:** pass search_mode into _handle_niche_agent_stream + bump modal test timeout ([ee193c5](https://github.com/MarioWinter/merch-miner/commit/ee193c552e29e5b79272c26a4fded22ce90b5f48))
+* **dashboard:** bug-report modal + widgets + settings consolidation + chat polish (9 items) ([82ba473](https://github.com/MarioWinter/merch-miner/commit/82ba473aaa66906a4f8b0d3607e832636a5e090a))
+* **dashboard:** drawer toggle overflow + i18n-aware widget content ([aaa7b73](https://github.com/MarioWinter/merch-miner/commit/aaa7b735757f78f5ca787f720280a2714797384e))
+* **dashboard:** fall back to English for non-DE locales ([1f3988d](https://github.com/MarioWinter/merch-miner/commit/1f3988d516d5de9fe113f2b339fc589eb563c9ef))
+* **dashboard:** mount roadmap+CHANGELOG into containers + email attachment ([4a9ae67](https://github.com/MarioWinter/merch-miner/commit/4a9ae677e6b1833ffd87d052906ae72aa3bb1d59))
+* **drawer:** DrawerLayoutToggle z-index above drawer tab-strip ([1bd3c70](https://github.com/MarioWinter/merch-miner/commit/1bd3c704ed79245707105f484ebd178ec18725f6))
+* **ui:** gate VersionBadge changelog link on superuser flag ([30c9a4c](https://github.com/MarioWinter/merch-miner/commit/30c9a4c4ac439aaab3c44ca6e5a0f8e52abec1b2))
+
+
+### Documentation
+
+* **FIX-dashboard:** add spec + tasks file + INDEX entry ([096930d](https://github.com/MarioWinter/merch-miner/commit/096930d5feeaac7808865d9d7f6583da65bb5a5d))
+* **FIX-dashboard:** note required worker restart for new feedback_app ([b40c890](https://github.com/MarioWinter/merch-miner/commit/b40c890c214ae409111f07f5e48abd073adb15bf))
+* **FIX-dashboard:** Phase 11 QA — pass on all 9 items, status → In Review ([c97026e](https://github.com/MarioWinter/merch-miner/commit/c97026e96d7e4a52d3cfb1a6a7550a9d6898b778))
+
 ## [0.7.1](https://github.com/MarioWinter/merch-miner/compare/v0.7.0...v0.7.1) (2026-05-31)
 
 
