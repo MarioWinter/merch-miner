@@ -3627,8 +3627,22 @@
     },
     "pill": {
       "label": "Upscaling {{completed}}/{{total}}",
+      "combinedLabel": "Upscaling {{completed}}/{{total}}",
       "starting": "Upscaling…",
-      "ariaOpen": "Open bulk upscale status"
+      "ariaOpen": "Open bulk upscale status",
+      "drawerOpenAria": "Show running upscales",
+      "drawerHeading": "Running upscales",
+      "drawerCloseAria": "Close",
+      "drawerEmpty": "No upscales running",
+      "drawerJobLabel": "Design {{designId}} · {{source}}",
+      "sourceEditor": "Editor",
+      "sourceBatch": "Batch"
+    },
+    "snackbar": {
+      "singleDone": "Upscale done",
+      "singleDoneAction": "Open in Canvas",
+      "singleFailed": "Upscale failed",
+      "singleTimeout": "Upscale is taking longer than expected — check back later."
     },
     "compare": {
       "title": "Upscale comparison",

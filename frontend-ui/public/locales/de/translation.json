@@ -3670,8 +3670,22 @@
     },
     "pill": {
       "label": "Upscale {{completed}}/{{total}}",
+      "combinedLabel": "Upscale {{completed}}/{{total}}",
       "starting": "Upscale läuft…",
-      "ariaOpen": "Bulk-Upscale-Status öffnen"
+      "ariaOpen": "Bulk-Upscale-Status öffnen",
+      "drawerOpenAria": "Laufende Upscales anzeigen",
+      "drawerHeading": "Laufende Upscales",
+      "drawerCloseAria": "Schliessen",
+      "drawerEmpty": "Keine Upscales aktiv",
+      "drawerJobLabel": "Design {{designId}} · {{source}}",
+      "sourceEditor": "Editor",
+      "sourceBatch": "Batch"
+    },
+    "snackbar": {
+      "singleDone": "Upscale fertig",
+      "singleDoneAction": "Zum Canvas",
+      "singleFailed": "Upscale fehlgeschlagen",
+      "singleTimeout": "Der Upscale dauert länger als erwartet — schau später nochmal vorbei."
     },
     "compare": {
       "title": "Upscale-Vergleich",

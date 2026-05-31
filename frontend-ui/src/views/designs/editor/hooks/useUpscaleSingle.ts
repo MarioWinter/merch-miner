@@ -152,6 +152,7 @@ export const useUpscaleSingle = ({
       reduxDispatch(
         recordCompletion({
           designId: designId ?? null,
+          projectId: projectId ?? null,
           kind: 'success',
           ts: Date.now(),
         }),
@@ -189,6 +190,7 @@ export const useUpscaleSingle = ({
       reduxDispatch(
         recordCompletion({
           designId: designId ?? null,
+          projectId: projectId ?? null,
           kind: 'error',
           reason: 'timeout',
           ts: Date.now(),
@@ -199,7 +201,7 @@ export const useUpscaleSingle = ({
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [designId, drainPendingPromises, pollEnabled, reduxDispatch]);
+  }, [designId, drainPendingPromises, pollEnabled, projectId, reduxDispatch]);
 
   const startTrigger = useCallback(
     async (replace: boolean) => {
@@ -246,6 +248,7 @@ export const useUpscaleSingle = ({
           reduxDispatch(
             recordCompletion({
               designId: designId ?? null,
+              projectId: projectId ?? null,
               kind: 'error',
               reason: 'trigger_failed',
               ts: Date.now(),
@@ -262,6 +265,7 @@ export const useUpscaleSingle = ({
       destination,
       drainPendingPromises,
       enqueueSnackbar,
+      projectId,
       reduxDispatch,
       t,
       trigger,

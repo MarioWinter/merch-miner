@@ -27,6 +27,7 @@ import ImprintPage from './views/legal/imprint/ImprintPage';
 import PrivacyPage from './views/legal/privacy/PrivacyPage';
 import { isRegistrationEnabled } from './utils/isRegistrationEnabled';
 import { useVerifyActiveBatch } from './views/designs/board/hooks/useVerifyActiveBatch';
+import { useGlobalUpscaleNotifications } from './hooks/useGlobalUpscaleNotifications';
 
 
 const App = () => {
@@ -37,6 +38,11 @@ const App = () => {
   // PROJ-27 — verify localStorage-rehydrated activeBatchId is still active
   // server-side; clear if 404 / terminal so the topbar pill doesn't show stale.
   useVerifyActiveBatch();
+
+  // FIX-canvas-editor-bugs-and-image-gen Phase B — global completion snackbar
+  // for single-design upscales. Mounted here (and ONLY here) so a finished
+  // upscale surfaces even when the user has navigated away from the workspace.
+  useGlobalUpscaleNotifications();
 
   // PROJ-31 — pre-auth flag: registration is the one gate that fires BEFORE
   // login, so the entitlement system (`useCan`) cannot apply. Single ENV

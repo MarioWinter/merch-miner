@@ -46,6 +46,13 @@ const safeRemove = (key: string): void => {
  */
 export interface UpscaleCompletion {
   designId: string | null;
+  /**
+   * Phase B (FIX-canvas-editor-bugs-and-image-gen) — the project the design
+   * belongs to. Plumbed through so the global completion snackbar can render
+   * an "Open in Canvas" action that navigates to `/designs/<projectId>`.
+   * Null when the dispatch site has no project context (defensive).
+   */
+  projectId: string | null;
   kind: 'success' | 'error';
   /** Optional sub-error code for finer-grained snackbar wording (timeout, etc.). */
   reason?: 'timeout' | 'trigger_failed' | 'quota_exceeded';

@@ -34,23 +34,23 @@ Skill: `/frontend`, hard scope lock to `useArtboardVersionSync` + its test. Sing
 Skill: `/frontend`. Depends on Phase A (the snackbar's "open in canvas" must show the upscaled image).
 
 ### B1 — Promote the pill
-- [ ] TB.1: Move `views/designs/board/partials/UpscaleStatusPill.tsx` → `components/UpscaleStatusPill/index.tsx`. Update the Topbar import (`components/topbar/Topbar.tsx`). Grep for any other importers and repoint them.
-- [ ] TB.2: Confirm no behavior change after the move (batch path still works) — run existing tests if any, else smoke-verify in dev.
+- [x] TB.1: Move `views/designs/board/partials/UpscaleStatusPill.tsx` → `components/UpscaleStatusPill/index.tsx`. Update the Topbar import (`components/topbar/Topbar.tsx`). Grep for any other importers and repoint them.
+- [x] TB.2: Confirm no behavior change after the move (batch path still works) — run existing tests if any, else smoke-verify in dev.
 
 ### B2 — Extend the pill to single-design upscales
-- [ ] TB.3: Extend the pill to ALSO subscribe to `upscaleSlice.processingDesignIds`. Compute an aggregated `{completed}/{total}` across batch jobs + single-design jobs (AC-2-2). If a derived selector keeps it clean, add it to `upscaleSlice` (only if needed — AC-2-x).
-- [ ] TB.4: Pill stays visible while single-design upscales are in flight, hides 2s after the last terminal job (reuse `TERMINAL_FADE_MS`) — AC-2-3 / AC-2-6.
-- [ ] TB.5: Create `components/UpscaleStatusPill/partials/UpscaleJobsDrawer.tsx` — MUI Drawer/Popover listing each in-flight job with `designId` + source label (Editor / Batch). Opened by clicking the pill (AC-2-7).
+- [x] TB.3: Extend the pill to ALSO subscribe to `upscaleSlice.processingDesignIds`. Compute an aggregated `{completed}/{total}` across batch jobs + single-design jobs (AC-2-2). If a derived selector keeps it clean, add it to `upscaleSlice` (only if needed — AC-2-x).
+- [x] TB.4: Pill stays visible while single-design upscales are in flight, hides 2s after the last terminal job (reuse `TERMINAL_FADE_MS`) — AC-2-3 / AC-2-6.
+- [x] TB.5: Create `components/UpscaleStatusPill/partials/UpscaleJobsDrawer.tsx` — MUI Drawer/Popover listing each in-flight job with `designId` + source label (Editor / Batch). Opened by clicking the pill (AC-2-7).
 
 ### B3 — Completion snackbar with navigation
-- [ ] TB.6: In `views/designs/editor/hooks/useUpscaleSingle.ts`, on terminal success fire a notistack snackbar "Upscale fertig" with action "Zum Canvas" that `navigate(`/designs/${projectId}`)` and focuses the artboard (AC-2-4). Error variant on failure (EC-2-3).
-- [ ] TB.7: Ensure the snackbar fires once per completed job (useRef/Set gate), not on every poll tick.
+- [x] TB.6: New app-level `useGlobalUpscaleNotifications` hook (mounted ONCE in `App.tsx`) fires a notistack snackbar on every `recordCompletion`. Success variant carries an "Open in Canvas" action that navigates to `/designs/<projectId>`; timeout → warning variant; other errors → error variant. The workspace-scoped snackbar block in `useUpscaleCompletionMonitor` was removed to avoid double-fire.
+- [x] TB.7: Snackbar dedupes by `lastCompletion.ts` via `useRef` — re-renders with the same ts no-op.
 
 ### B4 — i18n + tests
-- [ ] TB.8: Add i18n keys `upscale.pill.singleLabel`, `upscale.pill.drawerOpenAria`, `upscale.pill.drawerJobLabel`, `upscale.snackbar.singleDone`, `upscale.snackbar.singleDoneAction` (de + en, ASCII fallback convention).
-- [ ] TB.9: Tests on the promoted `UpscaleStatusPill`: renders batch-only, single-only, combined (summed label); click opens drawer; drawer lists jobs with source (AC-2-8). Snackbar test: single completion fires once + action navigates to `/designs/<projectId>`.
-- [ ] TB.10: `npm run lint && npx tsc -b && npm run test -- --run`. Zero failures.
-- [ ] TB.11: Flip AC-2-1..AC-2-9 + EC-2-1..EC-2-5 to `[x]`. (EC-2-4 cross-session persistence: verify whether `upscaleSlice` persists today; if not, mark EC-2-4 as out-of-scope follow-up inline.)
+- [x] TB.8: Added i18n keys under `upscale.pill.*` (`combinedLabel`, `drawerOpenAria`, `drawerHeading`, `drawerCloseAria`, `drawerEmpty`, `drawerJobLabel`, `sourceEditor`, `sourceBatch`) and `upscale.snackbar.*` (`singleDone`, `singleDoneAction`, `singleFailed`, `singleTimeout`) in both de + en.
+- [x] TB.9: New tests under `components/UpscaleStatusPill/__tests__/` (pill + drawer) and `hooks/__tests__/useGlobalUpscaleNotifications.test.tsx` (snackbar fires once per ts, action navigates, error/warning variants).
+- [x] TB.10: `npx tsc -b` clean; targeted ESLint clean (zero warnings); `npm run test -- --run` → 1761 passed / 15 skipped.
+- [x] TB.11: AC-2-1..AC-2-9 + EC-2-1..EC-2-3, EC-2-5 flipped. EC-2-4 left unchecked + inline note: `upscaleSlice.processingDesignIds` is NOT persisted to localStorage today (only `activeBatchId` + per-workspace prefs are). Cross-session pill rehydrate is an out-of-scope follow-up.
 
 ---
 

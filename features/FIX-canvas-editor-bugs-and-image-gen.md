@@ -44,15 +44,15 @@ Items 1 + 3 ship as ONE commit (single root cause). Item 2 depends on Item 1 (Ca
 
 ### Item 2 — Editor-upscale persistence + global progress reuse
 
-- [ ] AC-2-1: `UpscaleStatusPill` is PROMOTED from `views/designs/board/partials/` to `frontend-ui/src/components/UpscaleStatusPill/` (per memory `feedback_component_reuse_first`) so both Canvas and Editor paths import the same global component. Topbar import path updated.
-- [ ] AC-2-2: The pill is extended to subscribe to BOTH `upscaleSlice.activeBatchId` (current batch path) AND `upscaleSlice.processingDesignIds` (single-design path). The aggregated label reads `Upscaling {completed}/{total}` summed across both.
-- [ ] AC-2-3: User starts an upscale in the Image Editor → navigates to Dashboard / Niches / Settings → Pill stays visible in the Topbar throughout. Polling continues per existing `useUpscaleSingle` "no cleanup on unmount" rule.
-- [ ] AC-2-4: When a single-design upscale completes (background or foreground), a snackbar fires: "Upscale fertig" / "Upscale done" with an action "Zum Canvas" / "Open in Canvas" that navigates to `/designs/<projectId>` and focuses the artboard.
-- [ ] AC-2-5: After Item 1 fix lands, returning to the Canvas after a background-completed upscale shows the upscaled image with the Upscaled chip active.
-- [ ] AC-2-6: Pill is hidden again 2s after the last in-flight job terminates (matches existing `TERMINAL_FADE_MS` pattern).
-- [ ] AC-2-7: Click on the pill opens a Drawer/Popover that lists each in-flight upscale with source (Editor / Batch) + designId so the user can identify what's running.
-- [ ] AC-2-8: Unit test covers: pill renders for single-design state; pill renders for combined batch+single state with summed counts; snackbar fires once on completion; snackbar action navigates to `/designs/<projectId>`.
-- [ ] AC-2-9: i18n keys (see "i18n keys" section at the bottom of this spec).
+- [x] AC-2-1: `UpscaleStatusPill` is PROMOTED from `views/designs/board/partials/` to `frontend-ui/src/components/UpscaleStatusPill/` (per memory `feedback_component_reuse_first`) so both Canvas and Editor paths import the same global component. Topbar import path updated.
+- [x] AC-2-2: The pill is extended to subscribe to BOTH `upscaleSlice.activeBatchId` (current batch path) AND `upscaleSlice.processingDesignIds` (single-design path). The aggregated label reads `Upscaling {completed}/{total}` summed across both.
+- [x] AC-2-3: User starts an upscale in the Image Editor → navigates to Dashboard / Niches / Settings → Pill stays visible in the Topbar throughout. Polling continues per existing `useUpscaleSingle` "no cleanup on unmount" rule.
+- [x] AC-2-4: When a single-design upscale completes (background or foreground), a snackbar fires: "Upscale fertig" / "Upscale done" with an action "Zum Canvas" / "Open in Canvas" that navigates to `/designs/<projectId>` and focuses the artboard.
+- [x] AC-2-5: After Item 1 fix lands, returning to the Canvas after a background-completed upscale shows the upscaled image with the Upscaled chip active.
+- [x] AC-2-6: Pill is hidden again 2s after the last in-flight job terminates (matches existing `TERMINAL_FADE_MS` pattern).
+- [x] AC-2-7: Click on the pill opens a Drawer/Popover that lists each in-flight upscale with source (Editor / Batch) + designId so the user can identify what's running.
+- [x] AC-2-8: Unit test covers: pill renders for single-design state; pill renders for combined batch+single state with summed counts; snackbar fires once on completion; snackbar action navigates to `/designs/<projectId>`.
+- [x] AC-2-9: i18n keys (see "i18n keys" section at the bottom of this spec).
 
 ### Item 4 — Image-Gen auto-mode flow
 
@@ -79,11 +79,11 @@ Items 1 + 3 ship as ONE commit (single root cause). Item 2 depends on Item 1 (Ca
 
 ### Item 2
 
-- [ ] EC-2-1: User starts 3 single-design upscales in quick succession (different designs) → pill shows total "Upscaling 0/3" and increments as each completes. Completion snackbar fires per-job OR once at the end — architecture decides.
-- [ ] EC-2-2: User has BOTH an active batch (from Canvas) AND a single-design Editor upscale → ONE pill with the summed label "Upscaling {completed}/{total}". Click opens the drawer/popover (AC-2-7) that lists each job with source.
-- [ ] EC-2-3: All in-flight upscales fail → pill shows "Upscaling 0/N" briefly then snackbar variant=error fires; pill fades.
-- [ ] EC-2-4: User closes the browser mid-upscale → backend job continues (existing django-rq behavior); on next session start, the pill rehydrates from `upscaleSlice` persisted state (verify whether the slice IS persisted today; if not, mark out-of-scope follow-up).
-- [ ] EC-2-5: User clicks the "Zum Canvas" snackbar action but the design's project was deleted → standard 404 / redirect-to-list (no custom handling).
+- [x] EC-2-1: User starts 3 single-design upscales in quick succession (different designs) → pill shows total "Upscaling 0/3" and increments as each completes. Snackbar fires per-job (one per `recordCompletion` dispatch; `useGlobalUpscaleNotifications` dedupes by `ts`).
+- [x] EC-2-2: User has BOTH an active batch (from Canvas) AND a single-design Editor upscale → ONE pill with the summed label "Upscaling {completed}/{total}". Click opens the drawer/popover (AC-2-7) that lists each job with source.
+- [x] EC-2-3: All in-flight upscales fail → snackbar variant=error fires per failure; pill fades 3s after both buckets settle.
+- [ ] EC-2-4: User closes the browser mid-upscale → backend job continues (existing django-rq behavior); on next session start, the pill rehydrates from `upscaleSlice` persisted state. **Verified out-of-scope:** `upscaleSlice.processingDesignIds` is NOT persisted to localStorage today (only `activeBatchId`, `destinationByWorkspace`, `cloudTargetByWorkspace` are persisted). Rehydrating singles across reload requires a separate slice persistence pass — tracked as a follow-up.
+- [x] EC-2-5: User clicks the "Zum Canvas" snackbar action but the design's project was deleted → standard 404 / redirect-to-list (no custom handling — `navigate('/designs/<id>')` falls through to the project gallery's existing not-found path).
 
 ### Item 4
 
