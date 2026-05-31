@@ -132,6 +132,7 @@ INSTALLED_APPS = [
     'agent_app',
     'chat_attachments_app',
     'chat_node_config_app',
+    'feedback_app',
 ]
 
 # django-allauth settings
@@ -310,6 +311,12 @@ OPENROUTER_BASE_URL = os.environ.get(
     'OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1',
 )
 OPENROUTER_AGENT_API_KEY = os.environ.get('OPENROUTER_AGENT_API_KEY', '')
+# FIX-dashboard Item 4: model used by changelog_translator to convert
+# technical commit bullets into German user-benefit copy. Default = cheap
+# gpt-4o-mini through OpenRouter. Override via env to upgrade quality.
+CHANGELOG_TRANSLATE_MODEL = os.environ.get(
+    'CHANGELOG_TRANSLATE_MODEL', 'openai/gpt-4o-mini',
+)
 AGENT_BUDGET_WARNING_THRESHOLD = os.environ.get('AGENT_BUDGET_WARNING_THRESHOLD', '')
 # EC-15: Per-sub-agent timeout for orchestrator delegate calls (seconds, default 10 min)
 AGENT_SUBAGENT_TIMEOUT_SEC = int(os.environ.get('AGENT_SUBAGENT_TIMEOUT_SEC', '600'))
@@ -496,8 +503,21 @@ REST_FRAMEWORK = {
         # PROJ-34 Phase 13t-g (AC-89) — regenerate Best-of-Mix is LLM-expensive;
         # 5/h/user prevents abuse while leaving room for legitimate retries.
         'preset_regenerate': '5/hour',
+        # FIX-dashboard-bug-report-and-polish Item 1 (EC-1-5) — anti-spam on
+        # bug/feature submission. Applies to POST /feedback/screenshots/ AND
+        # POST /feedback/reports/ so the screenshot pre-warm trick is blocked too.
+        'feedback_create': '10/min',
     },
 }
+
+# ----------------------------------------
+# Feedback (FIX-dashboard-bug-report-and-polish Item 1)
+# ----------------------------------------
+# Recipient for new bug/feature reports. Falls back to DEFAULT_FROM_EMAIL
+# when unset so a missing env var doesn't break the email job entirely.
+FEEDBACK_RECIPIENT_EMAIL = os.environ.get(
+    'FEEDBACK_RECIPIENT_EMAIL', DEFAULT_FROM_EMAIL or '',
+)
 
 # Security headers
 SECURE_CONTENT_TYPE_NOSNIFF = True

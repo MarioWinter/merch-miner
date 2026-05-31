@@ -15,6 +15,13 @@ services:
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media
+      # FIX-dashboard Items 3 + 4 — Roadmap + Changelog widgets read
+      # the repo-root files from /srv/static_content/. Mounted outside
+      # /app so the prod image doesn't need a rebuild every time Mario
+      # edits docs/roadmap_user_facing.md (release-please regenerates
+      # CHANGELOG.md on every release PR merge).
+      - ./docs/roadmap_user_facing.md:/srv/static_content/roadmap_user_facing.md:ro
+      - ./CHANGELOG.md:/srv/static_content/CHANGELOG.md:ro
     restart: unless-stopped
     networks:
       - default

@@ -30,6 +30,12 @@ services:
     volumes:
       - ./django-app:/app
       - ./media:/app/media
+      # FIX-dashboard Items 3 + 4 — dashboard widgets read the roadmap
+      # MD + the CHANGELOG from the repo root. Bind-mount them OUTSIDE
+      # /app because Docker Desktop on macOS can't nest single-file
+      # mounts inside an existing dir mount.
+      - ./docs/roadmap_user_facing.md:/srv/static_content/roadmap_user_facing.md:ro
+      - ./CHANGELOG.md:/srv/static_content/CHANGELOG.md:ro
     depends_on:
       - db
 

@@ -82,6 +82,9 @@ urlpatterns = [
     # Chat Attachments (PROJ-20 Phase 7)
     path('api/', include('chat_attachments_app.api.urls')),
 
+    # Bug / Feature Reports (FIX-dashboard-bug-report-and-polish Item 1)
+    path('api/', include('feedback_app.api.urls')),
+
     # OpenClaw Agent (Multi-Agent System) API
     path('api/', include('agent_app.api.urls')),
 

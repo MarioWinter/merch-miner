@@ -34,6 +34,13 @@ from dashboard_app.services.analytics_aggregator import (
     get_agent_analytics,
     get_search_analytics,
 )
+from dashboard_app.services.roadmap_loader import (
+    load_roadmap,
+    roadmap_last_modified,
+)
+from dashboard_app.services.changelog_translator import (
+    get_translated_changelog,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -356,3 +363,71 @@ class SearchAnalyticsExportView(APIView):
             ['week', 'searches', 'crawls', 'crawl_success_rate', 'top_query'],
             csv_rows,
         )
+
+
+class RoadmapView(APIView):
+    """
+    GET /api/dashboard/roadmap/?lang=de|en — user-facing roadmap items.
+
+    Source: hand-curated ``docs/roadmap_user_facing.md`` (YAML front-matter).
+    Visible to ALL authenticated users; no workspace gating.
+
+    ``lang`` (default ``de``) selects which language fields to emit. ``en``
+    prefers ``title_en`` / ``description_en`` per entry with a per-item
+    German fallback.
+    """
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Fallback for unsupported / missing locales is ENGLISH — only DE
+        # gets its native fields; everything else uses the EN copy.
+        lang = request.query_params.get('lang', 'en').lower()
+        if lang not in ('de', 'en'):
+            lang = 'en'
+        try:
+            items = load_roadmap(lang=lang)
+            last_modified = roadmap_last_modified()
+        except Exception:
+            logger.exception('Roadmap load failed')
+            return Response(
+                {'error': 'Failed to load roadmap.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({
+            'items': items,
+            'last_updated': last_modified.isoformat() if last_modified else None,
+        })
+
+
+class ChangelogView(APIView):
+    """
+    GET /api/dashboard/changelog/?lang=de|en — top-3 versions, LLM-rewritten.
+
+    Source: ``CHANGELOG.md`` (release-please generated). Each commit-bullet is
+    rewritten into ≤2-sentence user-benefit copy in the requested language
+    via OpenRouter, then Redis-cached for 6h keyed by ``(latest tag, lang)``
+    so DE + EN renditions don't evict each other.
+
+    Visible to ALL authenticated users; no workspace gating (per AC-4-6).
+    """
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Fallback for unsupported / missing locales is ENGLISH — only DE
+        # gets German LLM copy; everything else gets English.
+        lang = request.query_params.get('lang', 'en').lower()
+        if lang not in ('de', 'en'):
+            lang = 'en'
+        try:
+            versions = get_translated_changelog(lang=lang)
+        except Exception:
+            logger.exception('Changelog translation failed')
+            return Response(
+                {'error': 'Failed to load changelog.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({'versions': versions})

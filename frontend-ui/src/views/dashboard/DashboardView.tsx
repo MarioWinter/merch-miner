@@ -7,6 +7,8 @@ import KPICards from './partials/KPICards';
 import PipelineFunnel from './partials/PipelineFunnel';
 import ActivityFeed from './partials/ActivityFeed';
 import StuckNichesWidget from './partials/StuckNichesWidget';
+import RoadmapWidget from './partials/RoadmapWidget';
+import ChangelogWidget from './partials/ChangelogWidget';
 import DesignAnalyticsChart from './partials/DesignAnalyticsChart';
 import ListingAnalyticsChart from './partials/ListingAnalyticsChart';
 import AgentActivityWidget from './partials/AgentActivityWidget';
@@ -68,6 +70,16 @@ const DashboardView = () => {
           isLoading={dashLoading}
         />
       </Box>
+
+      {/* Roadmap + Changelog Widgets */}
+      <Grid container spacing={3} sx={{ mt: 1 }}>
+        <Grid size={{ xs: 12, sm: 12, md: 6 }}>
+          <RoadmapWidget />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 12, md: 6 }}>
+          <ChangelogWidget />
+        </Grid>
+      </Grid>
 
       {/* Agent + Search Widgets (from main dashboard data) */}
       <Grid container spacing={3} sx={{ mt: 1 }}>

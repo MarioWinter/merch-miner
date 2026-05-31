@@ -19,6 +19,7 @@ import { agentApi } from './agentSlice';
 import { collectedProductsApi } from './collectedProductsSlice';
 import { upscaleApi } from './upscaleApi';
 import { searchHistoryApi } from './searchHistorySlice';
+import { feedbackApi } from './feedbackSlice';
 import { presetCardsApi } from '../services/presetCardsApi';
 import { customTypographyApi } from '../services/customTypographyApi';
 
@@ -44,6 +45,7 @@ export const store = configureStore({
     [collectedProductsApi.reducerPath]: collectedProductsApi.reducer,
     [upscaleApi.reducerPath]: upscaleApi.reducer,
     [searchHistoryApi.reducerPath]: searchHistoryApi.reducer,
+    [feedbackApi.reducerPath]: feedbackApi.reducer,
     [presetCardsApi.reducerPath]: presetCardsApi.reducer,
     [customTypographyApi.reducerPath]: customTypographyApi.reducer,
   },
@@ -63,12 +65,14 @@ export const store = configureStore({
       .concat(collectedProductsApi.middleware)
       .concat(upscaleApi.middleware)
       .concat(searchHistoryApi.middleware)
+      .concat(feedbackApi.middleware)
       .concat(presetCardsApi.middleware)
       .concat(customTypographyApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
+export type AppStore = typeof store;
 
 /**
  * Reset every RTK Query cache. Called from the logout flow so the next
@@ -93,6 +97,7 @@ export const resetAllRtkApiCaches = (dispatch: AppDispatch) => {
   dispatch(collectedProductsApi.util.resetApiState());
   dispatch(upscaleApi.util.resetApiState());
   dispatch(searchHistoryApi.util.resetApiState());
+  dispatch(feedbackApi.util.resetApiState());
   dispatch(presetCardsApi.util.resetApiState());
   dispatch(customTypographyApi.util.resetApiState());
 };

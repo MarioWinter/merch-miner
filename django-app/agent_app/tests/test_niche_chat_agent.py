@@ -229,12 +229,12 @@ class TestWebSearchTool:
         assert 'temporarily unavailable' in result.get('message', '')
         assert 'HTTP 500' in result.get('reason', '')
 
-    def test_calls_vane_with_speed_mode_for_cost_control(
+    def test_defaults_to_speed_mode_for_cost_control(
         self, workspace_a, niche_a, patch_llm_factory,
     ):
-        """web_search MUST pass `mode='speed'` to cap Vane research-mode
-        sub-query expansion. Verified live 2026-05-30: balanced expanded
-        one chat into 30–50 ScraperOps credits; speed caps it to ~3–8.
+        """`_build_tools` without an explicit `search_mode` arg → web_search
+        passes `mode='speed'` to Vane. Verified live 2026-05-30: balanced
+        expanded one chat into 30–50 ScraperOps credits; speed caps to ~3–8.
         """
         from agent_app.agents.niche_chat_agent import _build_tools
 
@@ -247,6 +247,25 @@ class TestWebSearchTool:
             web_search.invoke({'query': 'check mode'})
 
         assert mocked.call_args.kwargs.get('mode') == 'speed', mocked.call_args
+
+    def test_passes_through_explicit_search_mode(
+        self, workspace_a, niche_a, patch_llm_factory,
+    ):
+        """FIX-dashboard Phase 9: SearchDepthPicker lets the user opt into
+        `balanced` / `quality`. The view extracts `optimization_mode` from
+        the query and threads it through run_chat → _build_tools → web_search
+        — verify the mode is honored end-to-end at the tool layer."""
+        from agent_app.agents.niche_chat_agent import _build_tools
+
+        with patch(
+            'search_app.services.vane_service.VaneService.search_collected',
+            return_value={'sources': [], 'answer': '', 'model_used': ''},
+        ) as mocked:
+            tools = _build_tools(workspace_a, niche_a, search_mode='quality')
+            web_search = next(t for t in tools if t.name == 'web_search')
+            web_search.invoke({'query': 'deep research please'})
+
+        assert mocked.call_args.kwargs.get('mode') == 'quality', mocked.call_args
 
 
 # ── Tool: search_slogans ────────────────────────────────────────────────────

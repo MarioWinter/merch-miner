@@ -15,6 +15,7 @@ import { COLORS } from '@/style/constants';
 import ModePopoverButton from './partials/ModePopoverButton';
 import SourcesPopoverButton from './partials/SourcesPopoverButton';
 import ModelPopoverButton from './partials/ModelPopoverButton';
+import SearchDepthPicker from './partials/SearchDepthPicker';
 import AttachmentButton from './partials/AttachmentButton';
 import AttachmentBar from './partials/AttachmentBar';
 import SendButton from './partials/SendButton';
@@ -383,6 +384,7 @@ const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(
           <Stack direction="row" alignItems="center" gap={0.25}>
             <SourcesPopoverButton />
             <ModelPopoverButton />
+            <SearchDepthPicker />
             <AttachmentButton />
             <Box sx={{ ml: 0.5 }}>
               <SendButton

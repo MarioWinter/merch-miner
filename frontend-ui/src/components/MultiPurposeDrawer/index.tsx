@@ -102,6 +102,15 @@ const MultiPurposeDrawer = () => {
             top: paperTop,
             height: paperHeight,
             transition: 'width 200ms ease',
+            // FIX-dashboard Item 2 — DrawerLayoutToggle floats at left:-24
+            // off the Paper's left edge. MUI's default Paper clips that
+            // wrap so only the IconButton is visible, letting underlying
+            // page content (NicheFilterToolbar pills etc.) bleed through
+            // the cutout ring. Mirror the sidebar's pattern by allowing
+            // the toggle to overflow; the panel-container scroll lives
+            // INSIDE its own #mpd-panel-container so this doesn't break
+            // body scrolling.
+            overflow: 'visible',
             // 1200px Full Command Center: 3-column NotebookLM layout (desktop only)
             ...(isDesktop && width >= 1200
               ? {

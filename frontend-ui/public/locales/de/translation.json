@@ -677,6 +677,7 @@
     "title": "Einstellungen",
     "nav": {
       "label": "Einstellungsnavigation",
+      "aria_jumpto": "Zu Abschnitt springen",
       "profile": "Profil",
       "billing": "Abrechnung",
       "workspace": "Workspace",
@@ -2083,6 +2084,22 @@
         "searchPlaceholder": "Modelle suchen…",
         "providerOpenrouter": "OpenRouter",
         "noResults": "Keine Modelle passen zu \"{{query}}\""
+      },
+      "stages": {
+        "timeoutDowngradedMessage": "Suche länger als erwartet — Antwort aus alternativen Quellen"
+      },
+      "searchDepth": {
+        "ariaLabel": "Suchtiefe",
+        "title": "Suchtiefe",
+        "tooltip": "Suchtiefe — derzeit: {{mode}}",
+        "option_speed": "Schnell",
+        "option_balanced": "Ausgewogen",
+        "option_quality": "Tief",
+        "hint_speed": "Standard. Schnellste Antwort, niedrigster Credit-Verbrauch.",
+        "hint_balanced": "Etwas tiefere Recherche, ~3x Credit-Verbrauch.",
+        "hint_quality": "Maximale Recherche, kann ~10x Credits kosten und länger dauern.",
+        "warn_quality_long": "Tiefere Recherche kann länger als 2 Min dauern",
+        "cost_warning": "Achtung: jede Anfrage verbraucht mehr Credits"
       }
     },
     "commands": {
@@ -3322,6 +3339,20 @@
       "empty": "Keine blockierten Nischen",
       "daysStuck": "{{days}}T blockiert"
     },
+    "roadmap": {
+      "title": "Geplante Features",
+      "caption_last_updated": "Letzte Aktualisierung: {{date}}",
+      "empty_placeholder": "Bald hier: unser naechster Roadmap-Eintrag",
+      "error": "Roadmap konnte nicht geladen werden",
+      "priority_high": "Hohe Prioritaet",
+      "priority_medium": "Mittlere Prioritaet",
+      "priority_low": "Niedrige Prioritaet"
+    },
+    "changelog": {
+      "title": "Was ist neu",
+      "error": "Changelog konnte nicht geladen werden",
+      "empty_placeholder": "Updates folgen in Kuerze"
+    },
     "agent": {
       "title": "Agent-Aktivitaet",
       "activeWorkflows": "Aktive Workflows",
@@ -3925,6 +3956,63 @@
           "save": "Speichern"
         }
       }
+    }
+  },
+  "feedback": {
+    "topbar": {
+      "tooltip": "Bug melden oder Feature vorschlagen"
+    },
+    "modal": {
+      "title": "Hinweis senden",
+      "closeAria": "Feedback-Dialog schließen"
+    },
+    "form": {
+      "cancel": "Abbrechen",
+      "submit": "Senden",
+      "type": {
+        "label": "Was möchtest du melden?",
+        "bug": "Bug",
+        "feature": "Feature-Wunsch"
+      },
+      "title": {
+        "label": "Titel",
+        "placeholder": "Kurze Zusammenfassung",
+        "charsRemaining": "Noch {{count}} Zeichen"
+      },
+      "description": {
+        "label": "Beschreibung",
+        "placeholder": "Beschreibe, was passiert ist oder was du dir wünschst…",
+        "charsRemaining": "Noch {{count}} Zeichen"
+      },
+      "screenshot": {
+        "label": "Screenshot (optional)",
+        "helper": "PNG, JPEG oder WEBP bis 5 MB.",
+        "choose": "Screenshot hinzufügen",
+        "replace": "Screenshot ersetzen",
+        "uploadAria": "Screenshot hochladen",
+        "removeAria": "Screenshot entfernen",
+        "errors": {
+          "tooLarge": "Datei zu groß — maximal 5 MB.",
+          "wrongType": "Nur PNG, JPEG oder WEBP erlaubt."
+        }
+      },
+      "errors": {
+        "typeRequired": "Bitte Bug oder Feature wählen.",
+        "titleRequired": "Titel ist erforderlich.",
+        "titleTooLong": "Titel darf maximal 200 Zeichen haben.",
+        "descriptionRequired": "Beschreibung ist erforderlich.",
+        "descriptionTooLong": "Beschreibung darf maximal 4000 Zeichen haben."
+      }
+    },
+    "discard": {
+      "title": "Hinweis verwerfen?",
+      "message": "Du hast ungespeicherte Eingaben. Wirklich verwerfen und schließen?",
+      "confirm": "Verwerfen",
+      "cancel": "Weiter bearbeiten"
+    },
+    "snackbar": {
+      "success": "Danke! Dein Hinweis ist angekommen.",
+      "error": "Konnte Hinweis nicht senden — bitte später nochmal probieren."
     }
   }
 }

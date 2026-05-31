@@ -686,6 +686,7 @@
     "title": "Settings",
     "nav": {
       "label": "Settings navigation",
+      "aria_jumpto": "Jump to section",
       "profile": "Profile",
       "billing": "Billing",
       "workspace": "Workspace",
@@ -2654,6 +2655,20 @@
       "empty": "No stuck niches",
       "daysStuck": "{{days}}d stuck"
     },
+    "roadmap": {
+      "title": "Upcoming Features",
+      "caption_last_updated": "Last updated: {{date}}",
+      "empty_placeholder": "Coming soon: our next roadmap entry",
+      "error": "Could not load roadmap",
+      "priority_high": "High priority",
+      "priority_medium": "Medium priority",
+      "priority_low": "Low priority"
+    },
+    "changelog": {
+      "title": "What's new",
+      "error": "Could not load changelog",
+      "empty_placeholder": "Updates coming soon"
+    },
     "agent": {
       "title": "Agent Activity",
       "activeWorkflows": "Active Workflows",
@@ -2839,6 +2854,22 @@
         "searchPlaceholder": "Search models…",
         "providerOpenrouter": "OpenRouter",
         "noResults": "No models match \"{{query}}\""
+      },
+      "stages": {
+        "timeoutDowngradedMessage": "Search took longer than expected — answer from alternate sources"
+      },
+      "searchDepth": {
+        "ariaLabel": "Search depth",
+        "title": "Search depth",
+        "tooltip": "Search depth — current: {{mode}}",
+        "option_speed": "Speed",
+        "option_balanced": "Balanced",
+        "option_quality": "Quality",
+        "hint_speed": "Default. Fastest answer, lowest credit cost.",
+        "hint_balanced": "Deeper research, ~3x credit cost.",
+        "hint_quality": "Maximum research; up to ~10x credit cost and slower.",
+        "warn_quality_long": "Deeper research can take >2 min",
+        "cost_warning": "Note: each request consumes more credits"
       }
     },
     "commands": {
@@ -3882,6 +3913,63 @@
           "save": "Save"
         }
       }
+    }
+  },
+  "feedback": {
+    "topbar": {
+      "tooltip": "Report a bug or suggest a feature"
+    },
+    "modal": {
+      "title": "Send feedback",
+      "closeAria": "Close feedback modal"
+    },
+    "form": {
+      "cancel": "Cancel",
+      "submit": "Send",
+      "type": {
+        "label": "What kind of feedback?",
+        "bug": "Bug",
+        "feature": "Feature request"
+      },
+      "title": {
+        "label": "Title",
+        "placeholder": "Short summary",
+        "charsRemaining": "{{count}} characters left"
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Describe what happened or what you'd like to see…",
+        "charsRemaining": "{{count}} characters left"
+      },
+      "screenshot": {
+        "label": "Screenshot (optional)",
+        "helper": "PNG, JPEG or WEBP up to 5 MB.",
+        "choose": "Add screenshot",
+        "replace": "Replace screenshot",
+        "uploadAria": "Upload screenshot",
+        "removeAria": "Remove screenshot",
+        "errors": {
+          "tooLarge": "File too large — max 5 MB.",
+          "wrongType": "Only PNG, JPEG or WEBP images are allowed."
+        }
+      },
+      "errors": {
+        "typeRequired": "Pick bug or feature request.",
+        "titleRequired": "Title is required.",
+        "titleTooLong": "Title must be 200 characters or fewer.",
+        "descriptionRequired": "Description is required.",
+        "descriptionTooLong": "Description must be 4000 characters or fewer."
+      }
+    },
+    "discard": {
+      "title": "Discard feedback?",
+      "message": "You have unsaved input. Discard it and close?",
+      "confirm": "Discard",
+      "cancel": "Keep editing"
+    },
+    "snackbar": {
+      "success": "Thanks! Your feedback has been sent.",
+      "error": "Could not send feedback — please try again later."
     }
   }
 }

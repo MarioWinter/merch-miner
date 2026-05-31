@@ -11,6 +11,7 @@ import { styled } from '@mui/material/styles';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import { useTranslation } from 'react-i18next';
 import { getStageMeta } from '../utils/stageMeta';
@@ -94,6 +95,17 @@ const StepRow = ({ step, reducedMotion = false }: StepRowProps) => {
         <ErrorOutlineIcon
           aria-label={t('chatNicheRag.thinking.aria.error', 'error')}
           sx={{ fontSize: 14, color: 'error.main' }}
+        />
+      </Tooltip>
+    );
+  } else if (step.status === 'info') {
+    // FIX-dashboard Item 7 — post-done downgrade of tool_timeout warnings
+    // when the LLM still produced a substantive answer.
+    statusNode = (
+      <Tooltip title={step.message ?? ''} placement="left">
+        <InfoOutlinedIcon
+          aria-label={t('chatNicheRag.thinking.aria.info', 'info')}
+          sx={{ fontSize: 14, color: 'text.secondary' }}
         />
       </Tooltip>
     );

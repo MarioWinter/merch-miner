@@ -35,6 +35,17 @@ export type DrawerLayout = 'overlap' | 'sideBySide';
 export type NicheMode = 'create' | 'edit';
 
 /**
+ * FIX-dashboard-bug-report-and-polish Item 9 — speed-mode bypass knob.
+ * Per-user-session preference forwarded as `optimization_mode` on the chat
+ * stream request. Re-introduces the slot that was removed in PROJ-20 once
+ * the Vane mode was hardcoded to `'speed'` for cost control.
+ */
+export type SearchMode = 'speed' | 'balanced' | 'quality';
+
+export const SEARCH_MODES: readonly SearchMode[] = ['speed', 'balanced', 'quality'] as const;
+export const DEFAULT_SEARCH_MODE: SearchMode = 'speed';
+
+/**
  * PROJ-17 Phase 4 Step 6: virtual streaming assistant message rendered live in
  * ChatMessageList while the SSE stream is active. Cleared on `done`/`error`,
  * after which the persisted message arrives via RTK Query refetch.
@@ -74,6 +85,11 @@ interface ChatBarState {
   searchSources: SearchSource[];
   /** Selected LLM model */
   selectedModel: string;
+  /**
+   * FIX-dashboard-bug-report-and-polish Item 9 — Vane search-depth knob.
+   * Default `'speed'`. Forwarded as `optimization_mode` on the stream request.
+   */
+  searchMode: SearchMode;
   /**
    * PROJ-20 refactor (2026-04-28): binary Chat/Agent surface — bidirectionally
    * bound to `activePanel` ('chat'/'agent' tabs). Replaces the legacy auto/
@@ -179,6 +195,39 @@ const writePersisted = (state: ChatBarState): void => {
 
 const persisted = readPersisted();
 
+/**
+ * FIX-dashboard-bug-report-and-polish Item 9 — global `chat-search-mode` slot.
+ * Persisted under a workspace-agnostic key because the slice initializes
+ * before the active workspace id is known. EC-9-1: any value outside the
+ * valid `SearchMode` union falls back to `'speed'`.
+ * TODO: per-workspace key once workspaceId is available in slice init.
+ */
+const SEARCH_MODE_STORAGE_KEY = 'chat-search-mode-global';
+
+const isSearchMode = (value: unknown): value is SearchMode =>
+  value === 'speed' || value === 'balanced' || value === 'quality';
+
+const readPersistedSearchMode = (): SearchMode => {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return DEFAULT_SEARCH_MODE;
+  }
+  try {
+    const raw = window.localStorage.getItem(SEARCH_MODE_STORAGE_KEY);
+    return isSearchMode(raw) ? raw : DEFAULT_SEARCH_MODE;
+  } catch {
+    return DEFAULT_SEARCH_MODE;
+  }
+};
+
+const writePersistedSearchMode = (mode: SearchMode): void => {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    window.localStorage.setItem(SEARCH_MODE_STORAGE_KEY, mode);
+  } catch {
+    /* quota / privacy — ignore */
+  }
+};
+
 const initialState: ChatBarState = {
   drawerOpen: false,
   drawerWidth: DRAWER_WIDTH_DEFAULT,
@@ -192,6 +241,7 @@ const initialState: ChatBarState = {
   searching: false,
   searchSources: ['web'],
   selectedModel: 'openai/gpt-4.1-mini',
+  searchMode: readPersistedSearchMode(),
   modeOverride: 'chat',
   streamingAssistantMessage: INITIAL_STREAM,
   recentChatsOverlayOpen: false,
@@ -291,6 +341,14 @@ const chatBarSlice = createSlice({
     },
     setSelectedModel(state, action: PayloadAction<string>) {
       state.selectedModel = action.payload;
+    },
+    /**
+     * FIX-dashboard-bug-report-and-polish Item 9 — set the per-session search
+     * depth and persist to localStorage so reload restores the preference.
+     */
+    setSearchMode(state, action: PayloadAction<SearchMode>) {
+      state.searchMode = action.payload;
+      writePersistedSearchMode(action.payload);
     },
     setModeOverride(state, action: PayloadAction<ModeOverride>) {
       state.modeOverride = action.payload;
@@ -399,18 +457,50 @@ const chatBarSlice = createSlice({
     },
     /**
      * Transition the most recent loading row for `stage` → warning (tool_timeout, etc.).
+     * Optional `reason` lets callers tag the cause (currently only
+     * `'tool_timeout'`) so the post-done downgrader can target the right rows.
      */
     markStageWarning(
       state,
-      action: PayloadAction<{ stage: string; message?: string }>,
+      action: PayloadAction<{ stage: string; message?: string; reason?: 'tool_timeout' }>,
     ) {
-      const { stage, message } = action.payload;
+      const { stage, message, reason } = action.payload;
       for (let i = state.streamingStages.length - 1; i >= 0; i -= 1) {
         const row = state.streamingStages[i];
         if (row.stage === stage && row.status === 'loading') {
           row.status = 'warning';
           if (message) row.message = message;
+          if (reason) row.reason = reason;
           return;
+        }
+      }
+    },
+    /**
+     * FIX-dashboard Item 7 — downgrade tool_timeout warnings to `info` when
+     * the LLM still returned a substantive answer (>200 chars). The original
+     * timeout signal is misleading in that case: the search was slow but the
+     * final answer used alternate sources, so the user shouldn't see an
+     * orange warning chip next to a long, useful response.
+     *
+     * Rules (AC-7-1..5):
+     *   - Only rows with status='warning' AND reason='tool_timeout' are
+     *     candidates (no other warning sources today, but defensive).
+     *   - Only if the final answer length > 200 chars.
+     *   - Rewrite `message` to a localized "search slower than expected"
+     *     string the caller supplies (slice doesn't know t()).
+     *   - ALL matching rows are downgraded (EC-7-2).
+     *   - No-op if no warnings present or answer ≤ 200 chars.
+     */
+    downgradeTimeoutWarningsOnDone(
+      state,
+      action: PayloadAction<{ finalAnswerLength: number; downgradedMessage: string }>,
+    ) {
+      const { finalAnswerLength, downgradedMessage } = action.payload;
+      if (finalAnswerLength <= 200) return;
+      for (const row of state.streamingStages) {
+        if (row.status === 'warning' && row.reason === 'tool_timeout') {
+          row.status = 'info';
+          row.message = downgradedMessage;
         }
       }
     },
@@ -556,6 +646,7 @@ export const {
   setSearching,
   setSearchSources,
   setSelectedModel,
+  setSearchMode,
   setModeOverride,
   setStreamingAssistantMessage,
   appendStreamingChunk,
@@ -569,6 +660,7 @@ export const {
   pushStreamingStage,
   markStageDone,
   markStageWarning,
+  downgradeTimeoutWarningsOnDone,
   markStageError,
   appendChunksUsed,
   setFollowUps,
@@ -580,5 +672,12 @@ export const {
   setCompletedSloganPayload,
   promoteStreamingSloganPayload,
 } = chatBarSlice.actions;
+
+/**
+ * FIX-dashboard-bug-report-and-polish Item 9 — typed selector for the search
+ * depth knob. Components may also read `s.chatBar.searchMode` directly.
+ */
+export const selectSearchMode = (state: { chatBar: ChatBarState }): SearchMode =>
+  state.chatBar.searchMode;
 
 export default chatBarSlice.reducer;

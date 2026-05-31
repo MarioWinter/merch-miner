@@ -1170,6 +1170,7 @@ class ChatSessionMessageStreamView(APIView):
                 request, workspace, session, user_msg, content,
                 model_override=model,
                 search_sources=search_sources,
+                search_mode=search_mode,
             )
 
         vane = VaneService()
@@ -1288,7 +1289,7 @@ class ChatSessionMessageStreamView(APIView):
 
     def _handle_niche_agent_stream(
         self, request, workspace, session, user_msg, content,
-        model_override=None, search_sources=None,
+        model_override=None, search_sources=None, search_mode='speed',
     ):
         """PROJ-29 Phase 1E — stream the niche-chat agent.
 
@@ -1361,6 +1362,7 @@ class ChatSessionMessageStreamView(APIView):
                     session, content,
                     model_override=model_override,
                     search_sources=search_sources,
+                    search_mode=search_mode,
                 )
                 for evt in _wrap_with_heartbeat(inner):
                     event_name = evt.get('event')
@@ -1430,6 +1432,11 @@ class ChatSessionMessageStreamView(APIView):
                                 row['durationMs'] = duration
                             if event_name == 'tool_timeout':
                                 row['message'] = data.get('output_preview') or data.get('error') or ''
+                                # FIX-dashboard Item 7 — tag the cause so the
+                                # post-done downgrader can target tool_timeout
+                                # warnings specifically (other warning sources
+                                # may be added later).
+                                row['reason'] = 'tool_timeout'
                         yield _serialize_sse(evt)
                         continue
                     if event_name == 'done':
@@ -1446,6 +1453,24 @@ class ChatSessionMessageStreamView(APIView):
                         # on the wire) so the wire can carry the persisted
                         # message id.
                         final_answer = data.get('final_answer', '') or ''
+                        # FIX-dashboard Item 7 — when a tool_timeout fired but
+                        # the LLM still produced a substantive answer (>200
+                        # chars), downgrade those warning rows to `info` so
+                        # the persisted ThinkingStrip doesn't show an orange
+                        # warning chip next to a long, useful answer. Matches
+                        # the frontend `downgradeTimeoutWarningsOnDone` rule
+                        # so reloaded sessions render identically.
+                        if len(final_answer) > 200:
+                            for row in thinking_stages_buf:
+                                if (
+                                    row.get('status') == 'warning'
+                                    and row.get('reason') == 'tool_timeout'
+                                ):
+                                    row['status'] = 'info'
+                                    row['message'] = (
+                                        'Suche länger als erwartet — '
+                                        'Antwort aus alternativen Quellen'
+                                    )
                         assistant_msg = None
                         if final_answer:
                             assistant_msg = ChatMessage.objects.create(

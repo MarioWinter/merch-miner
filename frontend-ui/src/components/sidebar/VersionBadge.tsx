@@ -3,6 +3,7 @@ import { Box, Chip, Popover, Stack, Typography, Link as MuiLink } from '@mui/mat
 import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import ChangelogDrawer from './ChangelogDrawer';
+import { useIsSuperuser } from '@/hooks/useIsSuperuser';
 
 const APP_VERSION = import.meta.env.APP_VERSION || '0.0.0';
 const BUILD_DATE = import.meta.env.BUILD_DATE || '';
@@ -25,6 +26,19 @@ const Trigger = styled('button')(({ theme }) => ({
     backgroundColor: theme.vars.palette.action.hover,
     color: theme.vars.palette.text.secondary,
   },
+}));
+
+const StaticPill = styled('div')(({ theme }) => ({
+  padding: theme.spacing(0.5, 1),
+  margin: theme.spacing(0, 1),
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  color: theme.vars.palette.text.disabled,
+  fontSize: '0.7rem',
+  fontFamily: 'inherit',
+  cursor: 'default',
 }));
 
 const isBeta = (version: string) => {
@@ -51,6 +65,7 @@ interface VersionBadgeProps {
 
 const VersionBadge = ({ collapsed }: VersionBadgeProps) => {
   const { t } = useTranslation();
+  const isSuperuser = useIsSuperuser();
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -61,6 +76,35 @@ const VersionBadge = ({ collapsed }: VersionBadgeProps) => {
     setAnchor(null);
     setDrawerOpen(true);
   };
+
+  // Non-superuser: render a non-interactive pill — no onClick, no hover,
+  // no Popover, no Changelog Dialog mounted. Aria-label describes the
+  // app version only (no "open changelog" affordance).
+  if (!isSuperuser) {
+    const ariaLabel = t('versionBadge.appVersionAria', 'App version v{{version}}{{beta}}', {
+      version: APP_VERSION,
+      beta: beta ? ' Beta' : '',
+    });
+    return (
+      <StaticPill role="status" aria-label={ariaLabel}>
+        <span>v{APP_VERSION}</span>
+        {beta && !collapsed && (
+          <Chip
+            label="Beta"
+            size="small"
+            sx={{
+              height: 16,
+              fontSize: '0.6rem',
+              fontWeight: 600,
+              '& .MuiChip-label': { px: 0.75 },
+            }}
+            color="primary"
+            variant="outlined"
+          />
+        )}
+      </StaticPill>
+    );
+  }
 
   // Collapsed sidebar: render only the version number, no Beta pill (no room).
   return (

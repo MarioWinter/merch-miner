@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { configureStore } from '@reduxjs/toolkit';
 import chatBarReducer, {
   openDrawer,
@@ -11,6 +11,7 @@ import chatBarReducer, {
   setSearching,
   setSearchSources,
   setSelectedModel,
+  setSearchMode,
   setModeOverride,
   setStreamingAssistantMessage,
   appendStreamingChunk,
@@ -20,9 +21,11 @@ import chatBarReducer, {
   pushStreamingStage,
   markStageDone,
   markStageWarning,
+  downgradeTimeoutWarningsOnDone,
   appendChunksUsed,
   setFollowUps,
   clearFollowUps,
+  selectSearchMode,
 } from '../chatBarSlice';
 import type { ChunkUsed, ThinkingStep } from '../../types/chat-rag';
 
@@ -61,12 +64,14 @@ describe('chatBarSlice', () => {
     });
   });
 
-  // PROJ-20 Phase 2: searchMode + setSearchMode were removed; routing is now
-  // governed exclusively by `modeOverride` (chat / agent — binary surface).
-  it('does not expose a `searchMode` field on initial state', () => {
+  // FIX-dashboard-bug-report-and-polish Item 9 (re-introduced 2026-05-31):
+  // `searchMode` was removed in PROJ-20 Phase 2; reintroduced here as the
+  // Vane `optimization_mode` knob. Defaults to `'speed'` for cost control.
+  it('exposes searchMode on initial state with default "speed"', () => {
     const store = createStore();
     const s = getChatBar(store);
-    expect(s).not.toHaveProperty('searchMode');
+    expect(s).toHaveProperty('searchMode');
+    expect(s.searchMode).toBe('speed');
   });
 
   describe('drawer toggles', () => {
@@ -338,6 +343,104 @@ describe('chatBarSlice', () => {
       expect(row.message).toBe('timed out');
     });
 
+    it('markStageWarning records optional reason="tool_timeout"', () => {
+      const store = createStore();
+      store.dispatch(pushStreamingStage(mkStep('web_search')));
+      store.dispatch(
+        markStageWarning({
+          stage: 'web_search', message: 'timed out', reason: 'tool_timeout',
+        }),
+      );
+      const row = getChatBar(store).streamingStages[0];
+      expect(row.reason).toBe('tool_timeout');
+    });
+  });
+
+  describe('downgradeTimeoutWarningsOnDone (FIX-dashboard Item 7)', () => {
+    const mkStep = (stage: string, ts = 1000): ThinkingStep => ({
+      stage,
+      status: 'loading',
+      ts,
+    });
+    const seedWarning = (store: ReturnType<typeof createStore>, stage = 'web_search') => {
+      store.dispatch(pushStreamingStage(mkStep(stage)));
+      store.dispatch(
+        markStageWarning({ stage, message: 'timed out', reason: 'tool_timeout' }),
+      );
+    };
+
+    it('downgrades tool_timeout warning → info when answer > 200 chars (AC-7-1, AC-7-2)', () => {
+      const store = createStore();
+      seedWarning(store);
+      store.dispatch(
+        downgradeTimeoutWarningsOnDone({
+          finalAnswerLength: 250,
+          downgradedMessage: 'Suche länger als erwartet',
+        }),
+      );
+      const row = getChatBar(store).streamingStages[0];
+      expect(row.status).toBe('info');
+      expect(row.message).toBe('Suche länger als erwartet');
+    });
+
+    it('keeps warning when answer ≤ 200 chars (AC-7-4)', () => {
+      const store = createStore();
+      seedWarning(store);
+      store.dispatch(
+        downgradeTimeoutWarningsOnDone({
+          finalAnswerLength: 180,
+          downgradedMessage: 'should not appear',
+        }),
+      );
+      const row = getChatBar(store).streamingStages[0];
+      expect(row.status).toBe('warning');
+      expect(row.message).toBe('timed out');
+    });
+
+    it('no-op when no warning rows present', () => {
+      const store = createStore();
+      store.dispatch(pushStreamingStage(mkStep('retrieve_niche')));
+      const before = JSON.stringify(getChatBar(store).streamingStages);
+      store.dispatch(
+        downgradeTimeoutWarningsOnDone({
+          finalAnswerLength: 500,
+          downgradedMessage: 'x',
+        }),
+      );
+      expect(JSON.stringify(getChatBar(store).streamingStages)).toBe(before);
+    });
+
+    it('downgrades ALL matching warnings together (EC-7-2)', () => {
+      const store = createStore();
+      seedWarning(store, 'web_search');
+      seedWarning(store, 'search_amazon');
+      store.dispatch(
+        downgradeTimeoutWarningsOnDone({
+          finalAnswerLength: 500,
+          downgradedMessage: 'rewrite',
+        }),
+      );
+      const rows = getChatBar(store).streamingStages;
+      expect(rows.every((r) => r.status === 'info')).toBe(true);
+      expect(rows.every((r) => r.message === 'rewrite')).toBe(true);
+    });
+
+    it('does not touch warnings without reason="tool_timeout" (defensive)', () => {
+      const store = createStore();
+      store.dispatch(pushStreamingStage(mkStep('other_tool')));
+      store.dispatch(
+        markStageWarning({ stage: 'other_tool', message: 'generic warn' }),
+      );
+      store.dispatch(
+        downgradeTimeoutWarningsOnDone({
+          finalAnswerLength: 500,
+          downgradedMessage: 'x',
+        }),
+      );
+      const row = getChatBar(store).streamingStages[0];
+      expect(row.status).toBe('warning');
+    });
+
     it('appendChunksUsed concats and caps at 200 (FIFO)', () => {
       const store = createStore();
       const batch = (start: number, len: number): ChunkUsed[] =>
@@ -401,6 +504,62 @@ describe('chatBarSlice', () => {
       expect(s.streamingStages).toEqual([]);
       expect(s.chunksUsed).toEqual([]);
       expect(typeof s.streamStartedAt).toBe('number');
+    });
+  });
+
+  // FIX-dashboard-bug-report-and-polish Item 9 — search-depth knob.
+  describe('searchMode (Item 9)', () => {
+    const STORAGE_KEY = 'chat-search-mode-global';
+
+    beforeEach(() => {
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
+    });
+
+    it('setSearchMode mutates state to "balanced"', () => {
+      const store = createStore();
+      store.dispatch(setSearchMode('balanced'));
+      expect(getChatBar(store).searchMode).toBe('balanced');
+    });
+
+    it('setSearchMode mutates state to "quality"', () => {
+      const store = createStore();
+      store.dispatch(setSearchMode('quality'));
+      expect(getChatBar(store).searchMode).toBe('quality');
+    });
+
+    it('setSearchMode writes the value to localStorage', () => {
+      const store = createStore();
+      store.dispatch(setSearchMode('balanced'));
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe('balanced');
+    });
+
+    it('selectSearchMode returns the current searchMode', () => {
+      const store = createStore();
+      store.dispatch(setSearchMode('quality'));
+      expect(selectSearchMode(store.getState())).toBe('quality');
+    });
+
+    it('falls back to "speed" when localStorage has an invalid value (EC-9-1)', async () => {
+      // EC-9-1 — the slice's `readPersistedSearchMode` helper validates the
+      // stored value against the SearchMode union before adopting it. We
+      // assert that contract by reseeding localStorage with a bogus value
+      // and reloading the slice module so its initialState helper re-runs.
+      window.localStorage.setItem(STORAGE_KEY, 'turbo-mode-9000');
+      const importer = vi.fn(async () => {
+        // resetModules clears the import cache so the next dynamic import
+        // re-evaluates the slice's module-scoped `readPersistedSearchMode`.
+        const isolatedReducer = (await import('../chatBarSlice')).default;
+        return configureStore({ reducer: { chatBar: isolatedReducer } });
+      });
+      // Reset the module registry between assertions so any prior tests'
+      // module evaluation doesn't leak into this check.
+      vi.resetModules();
+      const isolatedStore = await importer();
+      expect(isolatedStore.getState().chatBar.searchMode).toBe('speed');
     });
   });
 });
