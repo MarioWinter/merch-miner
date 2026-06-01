@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.9.0](https://github.com/MarioWinter/merch-miner/compare/v0.8.0...v0.9.0) (2026-06-01)
+
+
+### Features
+
+* **chat:** add gemini-3.5-flash to the Niche Pipe model picker ([52a66e0](https://github.com/MarioWinter/merch-miner/commit/52a66e0116fe845653cf49919c40ba3a01ef7bb9))
+* **image-gen:** add 5:6 aspect ratio for MBA shirt prints ([0c3b989](https://github.com/MarioWinter/merch-miner/commit/0c3b989333e9ce8c6aaadf5054d3a9a4f97971c6))
+* **image-gen:** add Black Forest Labs FLUX.2 family (4 models) ([871efee](https://github.com/MarioWinter/merch-miner/commit/871efee147611d955fd62acd7a7b9036525dda6e))
+* **image-gen:** add GPT-5.4 Image 2 model ([722b3d5](https://github.com/MarioWinter/merch-miner/commit/722b3d58ddaf1d6baaf4faae3ebf1d2c51491501))
+* **image-gen:** default to GPT-5.4 Image 2 + fix GPT-5.4 multimodal flag ([8897ddb](https://github.com/MarioWinter/merch-miner/commit/8897ddb4564e7dcef816eba3ef0b5373d5c814d7))
+* **image-gen:** per-model AR dropdown filter + Canvas letterbox render ([f703c3c](https://github.com/MarioWinter/merch-miner/commit/f703c3c0eb0ab0b9596f6c26f9e155f6c04e366f))
+* **image-gen:** selection-driven mode auto-switch + Auto badge + 2-ref cap ([2e5216b](https://github.com/MarioWinter/merch-miner/commit/2e5216b95f236adfb0c8dd9940bdbdeea8125b94))
+* **models:** add GPT-5.4 nano/mini to chat + reorder all picker lists ([21d585c](https://github.com/MarioWinter/merch-miner/commit/21d585cfd2453295c8d0b5eab8892e28b5da3c31))
+* **upscale:** global pill + drawer + completion snackbar with Zum-Canvas ([b4ab29a](https://github.com/MarioWinter/merch-miner/commit/b4ab29a54d13fca645385837a486d68d1dd77ae2))
+* **upscale:** per-job cancel + global drawer mount + delete duplicate JobsDrawer ([dc606eb](https://github.com/MarioWinter/merch-miner/commit/dc606eb7e8779cc4368c1b84edc76385348f213a))
+
+
+### Bug Fixes
+
+* **canvas+publish:** canvas/editor bugs + image-gen polish + designs→publish cleanup ([d8ecc8f](https://github.com/MarioWinter/merch-miner/commit/d8ecc8f2574659a76779f6b7248ac23262e0fd76))
+* **canvas:** sync layer src on version-chip switch + upscaled display ([1abbdbe](https://github.com/MarioWinter/merch-miner/commit/1abbdbe01c321bc52026e656fba3b026b938bc7a))
+* **image-gen:** append aspect-ratio directive to Gemini user prompt ([6f7a39f](https://github.com/MarioWinter/merch-miner/commit/6f7a39feb3dd8d09fc6488fcf093a2cb56323195))
+* **image-gen:** mirror 5:6 aspect ratio on backend ([11f6203](https://github.com/MarioWinter/merch-miner/commit/11f62033275f0449711589661bd058c6ac90380f))
+* **image-gen:** OpenAI ignores size too — text-directive + unfilter dropdown ([4d3a73c](https://github.com/MarioWinter/merch-miner/commit/4d3a73cb6fd8f6f2d30cba1c8cef10300edfa0b6))
+* **image-gen:** snap OpenAI size param to nearest supported variant ([0684aac](https://github.com/MarioWinter/merch-miner/commit/0684aac233e0dff452d951446220f868fb35f624))
+* **upscale:** mark job failed on config-error + reconcile orphan stuck jobs ([4cf585b](https://github.com/MarioWinter/merch-miner/commit/4cf585b5bfba1e4326b2634796a2c1421578bfa9))
+* **upscale:** pass matching interpolation keys to BulkReUpscaleDialog body ([8594feb](https://github.com/MarioWinter/merch-miner/commit/8594feb9db3edd10648e8b33e596f297e6e11158))
+* **upscale:** trigger re-upscale dialog only when design actually has upscaled file ([32cd648](https://github.com/MarioWinter/merch-miner/commit/32cd64852652b30f100a4e3c6fde72adb623f129))
+
+
+### Documentation
+
+* **FIX-canvas-editor:** Phase D QA pass — all items verified, status → In Review ([7b44c1a](https://github.com/MarioWinter/merch-miner/commit/7b44c1a09f6d19bbcff9ff9a728be3a645df937a))
+* **FIX-canvas-editor:** spec + tech design + tasks (4 items, 45 ACs/ECs) ([5d5ff87](https://github.com/MarioWinter/merch-miner/commit/5d5ff87005660e9d510b2f98c3924d5bc1ba65b2))
+
 ## [0.8.0](https://github.com/MarioWinter/merch-miner/compare/v0.7.1...v0.8.0) (2026-05-31)
 
 
