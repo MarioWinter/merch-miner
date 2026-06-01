@@ -1902,14 +1902,14 @@
       "cta": "Send to Listings",
       "successCount": "{{created}} sent to Listings, {{skipped}} already there.",
       "bulkConfirm": "You're sending {{count}} designs — proceed?",
-      "openInPublish": "Open in Publish",
+      "openInPublish": "Open Listings",
       "alreadyInListings": "In Listings",
       "bulkTooLarge": "Maximum is 50 designs per request.",
-      "noEligible": "No approved designs to send.",
-      "noEligibleInSelection": "No approved designs in selection",
-      "notApprovedTooltip": "Only approved designs can be sent.",
-      "sendCount_one": "Send {{count}} approved design to Listings",
-      "sendCount_other": "Send {{count}} approved designs to Listings",
+      "noEligible": "No designs to send.",
+      "noEligibleInSelection": "No designs in selection",
+      "noDesign": "Selected artboard has no design",
+      "sendCount_one": "Send {{count}} design to Listings",
+      "sendCount_other": "Send {{count}} designs to Listings",
       "partialFailure_one": "{{failed}} design failed to send.",
       "partialFailure_other": "{{failed}} designs failed to send.",
       "confirm": "Send",
@@ -2367,6 +2367,9 @@
       "cancelButton": "Cancel"
     },
     "export": {
+      "section": {
+        "flyingUpload": "Flying Upload"
+      },
       "action": {
         "xlsxMba": "Export as XLSX (MBA)",
         "xlsxBasic": "Export as XLSX (Basic)",

@@ -75,10 +75,10 @@ const useSendDesignsToListings = ({ onSuccess }: UseSendDesignsToListingsOptions
           color="inherit"
           onClick={() => {
             closeSnackbar(snackKey);
-            navigate('/listings');
+            navigate('/publish');
           }}
         >
-          {t('designs.sendToListings.openInPublish', 'Open in Publish')}
+          {t('designs.sendToListings.openInPublish', 'Open Listings')}
         </Button>
         <Button size="small" color="inherit" onClick={() => closeSnackbar(snackKey)}>
           {t('common.close', 'Close')}
@@ -119,7 +119,7 @@ const useSendDesignsToListings = ({ onSuccess }: UseSendDesignsToListingsOptions
         return;
       }
 
-      enqueueSnackbar(t('designs.sendToListings.noEligible', 'No approved designs to send.'), {
+      enqueueSnackbar(t('designs.sendToListings.noEligible', 'No designs to send.'), {
         variant: 'warning',
       });
     },

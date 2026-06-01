@@ -1,11 +1,10 @@
 import { useCallback, useState } from 'react';
-import { Box, Chip, IconButton, Menu, MenuItem, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, IconButton, Menu, MenuItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import BrushOutlinedIcon from '@mui/icons-material/BrushOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import SendToListingsIcon from '@/views/designs/board/partials/SendToListingsIcon';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 import type { DesignProjectListItem } from '../types';
@@ -69,25 +68,6 @@ const MenuButton = styled(IconButton)({
   },
 });
 
-const SendButton = styled(IconButton)({
-  position: 'absolute',
-  top: 4,
-  left: 4,
-  opacity: 0,
-  transition: `opacity ${DURATION.fast}ms ${EASING.standard}`,
-  backgroundColor: alpha(COLORS.ink, 0.7),
-  backdropFilter: 'blur(4px)',
-  color: COLORS.snow,
-  '&:hover': {
-    backgroundColor: COLORS.inkElevated,
-    color: COLORS.snow,
-  },
-  '&.Mui-disabled': {
-    opacity: 0,
-    pointerEvents: 'none',
-  },
-});
-
 const CardBody = styled(Box)(({ theme }) => ({
   padding: theme.spacing(1.5),
   display: 'flex',
@@ -108,15 +88,12 @@ interface ProjectCardProps {
   project: DesignProjectListItem;
   onClick: (id: string) => void;
   onDelete: (id: string) => void;
-  onSendToListings?: (projectId: string) => void;
-  isSending?: boolean;
 }
 
-const ProjectCard = ({ project, onClick, onDelete, onSendToListings, isSending = false }: ProjectCardProps) => {
+const ProjectCard = ({ project, onClick, onDelete }: ProjectCardProps) => {
   const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const menuOpen = Boolean(anchorEl);
-  const noEligibleDesigns = project.design_count === 0;
 
   const handleMenuOpen = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
@@ -131,14 +108,6 @@ const ProjectCard = ({ project, onClick, onDelete, onSendToListings, isSending =
     handleMenuClose();
     onDelete(project.id);
   }, [handleMenuClose, onDelete, project.id]);
-
-  const handleSend = useCallback(
-    (e: React.MouseEvent<HTMLElement>) => {
-      e.stopPropagation();
-      onSendToListings?.(project.id);
-    },
-    [onSendToListings, project.id],
-  );
 
   return (
     <CardRoot
@@ -177,28 +146,6 @@ const ProjectCard = ({ project, onClick, onDelete, onSendToListings, isSending =
         >
           <MoreVertIcon sx={{ fontSize: 18 }} />
         </MenuButton>
-
-        {onSendToListings && (
-          <Tooltip
-            title={
-              noEligibleDesigns
-                ? t('designs.sendToListings.noEligible', 'No approved designs to send.')
-                : t('designs.sendToListings.cta', 'Send to Listings')
-            }
-          >
-            <span>
-              <SendButton
-                className="project-card-menu"
-                size="small"
-                onClick={handleSend}
-                disabled={noEligibleDesigns || isSending}
-                aria-label={t('designs.sendToListings.cta', 'Send to Listings')}
-              >
-                <SendToListingsIcon />
-              </SendButton>
-            </span>
-          </Tooltip>
-        )}
 
         <Menu
           anchorEl={anchorEl}

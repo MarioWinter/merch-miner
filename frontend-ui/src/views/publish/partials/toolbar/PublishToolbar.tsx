@@ -58,7 +58,7 @@ interface PublishToolbarProps {
   onCommandPaletteOpen: () => void;
   onTemplateClick: () => void;
   onUploadClick: () => void;
-  onPublishClick: () => void;
+  onPublishClick: (event: React.MouseEvent<HTMLElement>) => void;
   /** W5 — open the Export History drawer. Optional so existing call sites
    *  (e.g. EditView reuses the toolbar one day) keep compiling. */
   onHistoryClick?: () => void;

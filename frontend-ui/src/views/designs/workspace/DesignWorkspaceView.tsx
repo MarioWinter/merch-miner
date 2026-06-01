@@ -326,7 +326,7 @@ const DesignWorkspaceView = () => {
       const result: string[] = [];
       for (const id of artboardIds) {
         const design = designsByArtboardId.get(id);
-        if (design?.status === 'approved') result.push(design.id);
+        if (design?.id) result.push(design.id);
       }
       return result;
     },

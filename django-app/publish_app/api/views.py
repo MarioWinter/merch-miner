@@ -1265,14 +1265,15 @@ class DesignAssetFromDesignView(APIView):
 
     Covers AC-164 / AC-165 / AC-166 / AC-167 + EC-53..EC-60.
 
-    Filter order (AC-165):
+    Filter order:
       1. Workspace isolation -- foreign-workspace ids silently dropped.
-      2. Approval gate -- only ``status='approved'`` is sent. Others go to
-         ``rejected_ineligible`` with ``reason='not_approved'``.
-      3. Image presence -- empty ``image_file`` -> ``rejected_ineligible``
+      2. Image presence -- empty ``image_file`` -> ``rejected_ineligible``
          with ``reason='no_image'``.
-      4. Dedup -- if a non-deleted ``DesignAsset.design_origin == design.id``
+      3. Dedup -- if a non-deleted ``DesignAsset.design_origin == design.id``
          already exists, the design id goes to ``skipped_duplicates``.
+
+    Approval gate removed 2026-06-01: selecting an artboard and clicking
+    Send is now the explicit user act; no separate approve step.
 
     Per-design transactions: each eligible design is copied in its own
     ``transaction.atomic()`` block so a single storage failure doesn't roll
@@ -1339,12 +1340,7 @@ class DesignAssetFromDesignView(APIView):
                 # Workspace isolation drop -- not in any response array.
                 continue
 
-            # AC-165(2): approval gate.
-            if design.status != Design.Status.APPROVED:
-                rejected_ineligible.append({'id': sid, 'reason': 'not_approved'})
-                continue
-
-            # AC-165(3): image presence.
+            # Image presence.
             if not design.image_file or not design.image_file.name:
                 rejected_ineligible.append({'id': sid, 'reason': 'no_image'})
                 continue

@@ -144,7 +144,7 @@ const PanelMultiState = ({
   }, [onSendToListings, sendableDesignIds]);
 
   const sendTooltip = sendableDesignIds.length === 0
-    ? t('designs.sendToListings.noEligibleInSelection', 'No approved designs in selection')
+    ? t('designs.sendToListings.noEligibleInSelection', 'No designs in selection')
     : t('designs.sendToListings.sendCount', { count: sendableDesignIds.length });
 
   return (

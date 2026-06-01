@@ -163,7 +163,7 @@ const PanelArtboardState = ({
 
   const sendableDesignIds = getSendableDesignIds ? getSendableDesignIds([artboard.id]) : [];
   const sendTooltip = sendableDesignIds.length === 0
-    ? t('designs.sendToListings.notApprovedTooltip', 'Only approved designs can be sent.')
+    ? t('designs.sendToListings.noDesign', 'Selected artboard has no design')
     : t('designs.sendToListings.cta', 'Send to Listings');
   const [editingWidth, setEditingWidth] = useState<string | null>(null);
   const [editingHeight, setEditingHeight] = useState<string | null>(null);

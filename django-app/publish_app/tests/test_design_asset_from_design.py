@@ -143,23 +143,22 @@ class TestHappyPath:
 
 
 # ---------------------------------------------------------------------------
-# Approval gate (AC-165, EC-53)
+# Approval gate removed 2026-06-01 — selecting + clicking Send is the user's
+# explicit publish act, so designs of any status can be sent.
 # ---------------------------------------------------------------------------
 
-class TestApprovalGate:
-    @pytest.mark.parametrize('status', [
+class TestNoApprovalGate:
+    @pytest.mark.parametrize('design_status', [
         Design.Status.PENDING, Design.Status.REJECTED, Design.Status.FAILED,
     ])
-    def test_non_approved_rejected(self, api_client, workspace, idea, status):
-        d = _make_design(workspace, idea=idea, status=status)
+    def test_non_approved_still_created(self, api_client, workspace, idea, design_status):
+        d = _make_design(workspace, idea=idea, status=design_status)
         resp = api_client.post(URL, {'design_ids': [str(d.id)]}, format='json',
                                **ws_headers(workspace))
-        assert resp.status_code == 200
-        assert resp.data['created'] == []
-        assert resp.data['rejected_ineligible'] == [
-            {'id': str(d.id), 'reason': 'not_approved'},
-        ]
-        assert not DesignAsset.objects.filter(design_origin=d).exists()
+        assert resp.status_code == 200, resp.data
+        assert len(resp.data['created']) == 1
+        assert resp.data['rejected_ineligible'] == []
+        assert DesignAsset.objects.filter(design_origin=d).exists()
 
 
 # ---------------------------------------------------------------------------
