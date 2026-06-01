@@ -105,6 +105,26 @@ def get_prediction(prediction_id: str) -> dict[str, Any]:
     }
 
 
+def cancel_prediction(prediction_id: str) -> dict[str, Any]:
+    """Cancel a running prediction. Idempotent — if already terminal,
+    Replicate returns the current state without erroring.
+
+    Returns the dict shape the caller expects: ``{id, status}``.
+    Raises ReplicateConfigError when REPLICATE_API_TOKEN is missing.
+    Raises whatever Replicate's SDK raises on HTTP failure — callers
+    should catch + log + still mark the job failed locally so the user
+    isn't stuck with a phantom running row.
+    """
+    _ensure_token()
+    import replicate  # imported lazily to keep test import cost low
+
+    prediction = replicate.predictions.cancel(prediction_id)
+    return {
+        'id': getattr(prediction, 'id', prediction_id),
+        'status': getattr(prediction, 'status', 'canceled'),
+    }
+
+
 def verify_webhook_signature(*, headers: dict, body: str) -> None:
     """Validate a Replicate webhook signature.
 

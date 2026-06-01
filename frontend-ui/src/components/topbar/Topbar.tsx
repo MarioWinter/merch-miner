@@ -18,7 +18,7 @@ import { MobileContextControl } from './MobileContextSheet';
 import NotificationBell from '../NotificationBell';
 import FeedbackReportButton from './FeedbackReportButton';
 import HealthStatusDot from '../MultiPurposeDrawer/HealthStatusDot';
-import UpscaleStatusPill from '@/views/designs/board/partials/UpscaleStatusPill';
+import UpscaleStatusPill from '@/components/UpscaleStatusPill';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 

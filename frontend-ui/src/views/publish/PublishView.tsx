@@ -4,6 +4,8 @@ import {
   Button,
   Drawer,
   IconButton,
+  ListSubheader,
+  Menu,
   MenuItem,
   Stack,
   TextField,
@@ -38,7 +40,6 @@ import CloudStorageTab from './partials/cloud/CloudStorageTab';
 import SendToCloudDialog from './partials/cloud/SendToCloudDialog';
 import MovePickerDialog from './partials/grid/MovePickerDialog';
 import TemplateLibraryDialog from './partials/toolbar/TemplateLibraryDialog';
-import PublishBatchDialog from './partials/toolbar/PublishBatchDialog';
 import type { CloudProvider } from './partials/cloud/ProviderSwitcher';
 import EmptyState from './partials/EmptyState';
 import type {
@@ -117,7 +118,7 @@ const PublishView = () => {
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [sendToCloudOpen, setSendToCloudOpen] = useState(false);
   const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
-  const [publishBatchOpen, setPublishBatchOpen] = useState(false);
+  const [publishMenuAnchor, setPublishMenuAnchor] = useState<HTMLElement | null>(null);
   const [cloudProvider, setCloudProvider] = useState<CloudProvider>('google_drive');
   const [currentCollection, setCurrentCollection] = useState<string | null>(null);
   const [tagEditorDesignId, setTagEditorDesignId] = useState<string | null>(null);
@@ -285,10 +286,14 @@ const PublishView = () => {
   const handleMoveClose = useCallback(() => setMoveTargetId(null), []);
   const handleMoveComplete = useCallback(() => setMoveTargetId(null), []);
 
-  // Bulk "Delete Files" — loop DELETE /api/designs/gallery/{id}/ over the
-  // current selection. Kept client-side-looped for MVP; a bulk endpoint
-  // would be a minor backend optimization, not a correctness upgrade.
-  const handleBulkDeleteFiles = useCallback(async () => {
+  // Bulk "Delete Files" — opens MUI ConfirmDialog; on confirm loops
+  // DELETE /api/designs/gallery/{id}/ over the captured selection. Kept
+  // client-side-looped for MVP; a bulk endpoint would be a minor backend
+  // optimization, not a correctness upgrade.
+  const [bulkDeletePending, setBulkDeletePending] = useState<string[] | null>(null);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const handleBulkDeleteFiles = useCallback(() => {
     const ids = Array.from(selection.selectedIds);
     if (ids.length === 0) {
       enqueueSnackbar(
@@ -299,13 +304,13 @@ const PublishView = () => {
       );
       return;
     }
-    const ok = window.confirm(
-      t('publish.command.deleteFilesConfirm', {
-        defaultValue: 'Delete {{count}} design(s)? This cannot be undone.',
-        count: ids.length,
-      }),
-    );
-    if (!ok) return;
+    setBulkDeletePending(ids);
+  }, [selection.selectedIds, enqueueSnackbar, t]);
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    const ids = bulkDeletePending;
+    if (!ids) return;
+    setIsBulkDeleting(true);
     let successes = 0;
     let failures = 0;
     for (const id of ids) {
@@ -316,6 +321,8 @@ const PublishView = () => {
         failures += 1;
       }
     }
+    setIsBulkDeleting(false);
+    setBulkDeletePending(null);
     selection.handleSelectNone();
     if (successes > 0) {
       enqueueSnackbar(
@@ -335,7 +342,7 @@ const PublishView = () => {
         { variant: 'error' },
       );
     }
-  }, [selection, deleteDesign, enqueueSnackbar, t]);
+  }, [bulkDeletePending, deleteDesign, selection, enqueueSnackbar, t]);
 
   // Bulk "Download" — trigger browser download for each selected asset's
   // underlying file via an `<a download>` anchor. Sequential + throttled so
@@ -474,7 +481,7 @@ const PublishView = () => {
         onCommandPaletteOpen={() => cmdPalette.openPalette()}
         onTemplateClick={() => setTemplateLibraryOpen(true)}
         onUploadClick={handleUploadClick}
-        onPublishClick={() => setPublishBatchOpen(true)}
+        onPublishClick={(e) => setPublishMenuAnchor(e.currentTarget)}
         onHistoryClick={() => setHistoryOpen(true)}
       />
       <input
@@ -590,13 +597,26 @@ const PublishView = () => {
         />
       )}
 
-      {publishBatchOpen && (
-        <PublishBatchDialog
-          open
-          onClose={() => setPublishBatchOpen(false)}
-          selectedDesigns={designs.filter((d) => selection.isSelected(d.id))}
-        />
-      )}
+      <Menu
+        anchorEl={publishMenuAnchor}
+        open={Boolean(publishMenuAnchor)}
+        onClose={() => setPublishMenuAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <ListSubheader sx={{ lineHeight: '32px', fontWeight: 600 }}>
+          {t('publish.export.section.flyingUpload', { defaultValue: 'Flying Upload' })}
+        </ListSubheader>
+        <MenuItem onClick={() => { setPublishMenuAnchor(null); openExport('mba', 'xlsx'); }}>
+          {t('publish.export.action.xlsxMba', { defaultValue: 'Export as XLSX (MBA)' })}
+        </MenuItem>
+        <MenuItem onClick={() => { setPublishMenuAnchor(null); openExport('basic', 'xlsx'); }}>
+          {t('publish.export.action.xlsxBasic', { defaultValue: 'Export as XLSX (Basic)' })}
+        </MenuItem>
+        <MenuItem onClick={() => { setPublishMenuAnchor(null); openExport('basic', 'csv'); }}>
+          {t('publish.export.action.csv', { defaultValue: 'Export as CSV' })}
+        </MenuItem>
+      </Menu>
 
       {/* Command Palette Overlay */}
       <CommandPalette
@@ -635,7 +655,21 @@ const PublishView = () => {
         onToggleAll={selection.toggleAll}
         onHistory={() => {}}
         onBatchUpload={() => {}}
-        onDelete={() => {}}
+        onDelete={handleBulkDeleteFiles}
+      />
+
+      <ConfirmDialog
+        open={bulkDeletePending !== null}
+        title={t('publish.command.deleteFilesTitle', { defaultValue: 'Delete Designs' })}
+        body={t('publish.command.deleteFilesConfirm', {
+          defaultValue: 'Delete {{count}} design(s)? This cannot be undone.',
+          count: bulkDeletePending?.length ?? 0,
+        })}
+        confirmLabel={t('publish.command.deleteFiles', { defaultValue: 'Delete Files' })}
+        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+        onConfirm={() => { void handleConfirmBulkDelete(); }}
+        onCancel={() => setBulkDeletePending(null)}
+        isLoading={isBulkDeleting}
       />
 
       {/* Phase W3 — Export preflight dialog (mount-on-open) */}

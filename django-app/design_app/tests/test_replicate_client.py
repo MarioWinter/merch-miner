@@ -164,3 +164,43 @@ class TestGetPrediction:
         with patch.dict('sys.modules', {'replicate': fake_module}):
             out = replicate_client.get_prediction('pred-1')
         assert out['output'] == 'https://r.com/a.png'
+
+
+@pytest.mark.unit
+class TestCancelPrediction:
+
+    @patch.object(replicate_client, 'settings')
+    def test_raises_when_token_missing(self, mock_settings):
+        mock_settings.REPLICATE_API_TOKEN = ''
+        with pytest.raises(replicate_client.ReplicateConfigError):
+            replicate_client.cancel_prediction('pred-1')
+
+    def test_returns_id_and_status_shape(self, settings):
+        settings.REPLICATE_API_TOKEN = 'test-token'
+        fake_module = MagicMock()
+        fake_module.predictions.cancel.return_value = MagicMock(
+            id='pred-1', status='canceled',
+        )
+        with patch.dict('sys.modules', {'replicate': fake_module}):
+            out = replicate_client.cancel_prediction('pred-1')
+        fake_module.predictions.cancel.assert_called_once_with('pred-1')
+        assert out == {'id': 'pred-1', 'status': 'canceled'}
+
+    def test_falls_back_to_default_status_when_missing(self, settings):
+        settings.REPLICATE_API_TOKEN = 'test-token'
+        # Use a plain object without a status attr so getattr default kicks in.
+        class _Pred:
+            id = 'pred-2'
+        fake_module = MagicMock()
+        fake_module.predictions.cancel.return_value = _Pred()
+        with patch.dict('sys.modules', {'replicate': fake_module}):
+            out = replicate_client.cancel_prediction('pred-2')
+        assert out == {'id': 'pred-2', 'status': 'canceled'}
+
+    def test_propagates_sdk_errors(self, settings):
+        settings.REPLICATE_API_TOKEN = 'test-token'
+        fake_module = MagicMock()
+        fake_module.predictions.cancel.side_effect = RuntimeError('boom')
+        with patch.dict('sys.modules', {'replicate': fake_module}):
+            with pytest.raises(RuntimeError, match='boom'):
+                replicate_client.cancel_prediction('pred-3')

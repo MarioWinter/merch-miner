@@ -64,6 +64,14 @@ export interface UpscaleBatchStatusResponse {
   is_terminal: boolean;
 }
 
+export interface UpscaleCancelResponse {
+  id: string;
+  status: UpscaleJobStatus;
+  error_message: string | null;
+  /** Backend echoes `{detail: 'already terminal'}` when the job is already done. */
+  detail?: string;
+}
+
 export interface UpscaleQuotaResponse {
   used: number;
   limit: number | null;
@@ -125,6 +133,18 @@ export const upscaleApi = createApi({
       }),
       providesTags: ['UpscaleQuota'],
     }),
+
+    cancelUpscaleJob: builder.mutation<UpscaleCancelResponse, string>({
+      query: (jobId) => ({
+        url: `/api/designs/upscale/jobs/${jobId}/cancel/`,
+        method: 'POST',
+      }),
+      // Cancel-by-job-id doesn't know which batch the job belongs to, so
+      // invalidate the entire UpscaleBatch tag-bucket — the active batch
+      // will refetch and surface the now-`failed` row. Quota also flips
+      // because the backend refunds on cancel.
+      invalidatesTags: [{ type: 'UpscaleBatch' }, 'UpscaleQuota'],
+    }),
   }),
 });
 
@@ -134,4 +154,5 @@ export const {
   useGetBatchStatusQuery,
   useLazyGetBatchStatusQuery,
   useGetQuotaQuery,
+  useCancelUpscaleJobMutation,
 } = upscaleApi;

@@ -367,8 +367,22 @@ def enqueue_replicate_upscale(job_id: str):
                 job_id, job.replicate_prediction_id,
             )
             return
-        except ReplicateConfigError:
-            # Don't retry config errors — surface immediately.
+        except ReplicateConfigError as exc:
+            # Don't retry config errors — surface immediately. But mark the
+            # DB row failed first, otherwise the UI sees a phantom "running"
+            # forever AND the bulk endpoint's "one job per design" guard
+            # blocks the user from retriggering once the operator fixes
+            # the env (user-reported 2026-05-31: stuck job blocked all
+            # further upscale attempts until manually-cleared via shell).
+            job.status = DesignProcessingJob.Status.FAILED
+            job.completed_at = timezone.now()
+            job.error_message = f'replicate_config_error: {exc}'
+            job.save(update_fields=['status', 'completed_at', 'error_message'])
+            _refund_quota(job.triggered_by, job.completed_at)
+            logger.error(
+                'replicate config error — job=%s permanently failed (no retry): %s',
+                job_id, exc,
+            )
             raise
         except Exception as exc:  # noqa: BLE001 — broad on purpose; we retry
             last_exc = exc
@@ -564,6 +578,37 @@ def reconcile_stuck_jobs():
             reconciled += 1
     if reconciled:
         logger.info('reconcile_stuck_jobs: reconciled %s jobs', reconciled)
+
+    # User-report 2026-05-31: orphan jobs — status='running' but no
+    # replicate_prediction_id — are invisible to BOTH this reconciler
+    # (excluded by the empty-id filter above) AND the frontend
+    # (workspace UI keys off activeBatchId, hidden orphans never get
+    # surfaced). They jam the bulk endpoint's "one job per design" guard
+    # so the user can't retrigger. Sweep them here too: anything that's
+    # been "running" without a prediction id for >threshold is by
+    # definition a never-actually-fired enqueue (Fix A wrapping
+    # ReplicateConfigError now prevents the most common cause, but this
+    # is the safety net for any future enqueue-side crash that bypasses
+    # the new failed-status path).
+    orphan_qs = DesignProcessingJob.objects.filter(
+        type=DesignProcessingJob.JobType.UPSCALE,
+        status=DesignProcessingJob.Status.RUNNING,
+        replicate_prediction_id='',
+        created_at__lt=cutoff,
+    ).select_related('triggered_by')[:50]
+    orphans_failed = 0
+    for job in orphan_qs:
+        job.status = DesignProcessingJob.Status.FAILED
+        job.completed_at = timezone.now()
+        job.error_message = 'orphan_no_prediction_id — enqueue crashed before Replicate handoff'
+        job.save(update_fields=['status', 'completed_at', 'error_message'])
+        _refund_quota(job.triggered_by, job.completed_at)
+        orphans_failed += 1
+    if orphans_failed:
+        logger.warning(
+            'reconcile_stuck_jobs: marked %s orphan job(s) failed (status=running, no prediction id)',
+            orphans_failed,
+        )
 
 
 def enqueue_cloud_upload(job_id: str, cloud_target: dict):

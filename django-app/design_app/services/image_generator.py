@@ -119,8 +119,35 @@ MODEL_MAP = {
         'supports_system_role': True,
         'supports_seed': True,
     },
+    'openai/gpt-5.4-image-2': {
+        'openrouter_id': 'openai/gpt-5.4-image-2',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
     'black-forest-labs/flux-1.1-pro': {
         'openrouter_id': 'black-forest-labs/flux-1.1-pro',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    # FLUX.2 family — all support text + image input. Use width/height
+    # param shape (Flux/Seedream branch in generate_image — line ~485).
+    'black-forest-labs/flux.2-klein-4b': {
+        'openrouter_id': 'black-forest-labs/flux.2-klein-4b',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'black-forest-labs/flux.2-max': {
+        'openrouter_id': 'black-forest-labs/flux.2-max',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'black-forest-labs/flux.2-flex': {
+        'openrouter_id': 'black-forest-labs/flux.2-flex',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'black-forest-labs/flux.2-pro': {
+        'openrouter_id': 'black-forest-labs/flux.2-pro',
         'supports_system_role': True,
         'supports_seed': True,
     },
@@ -157,6 +184,86 @@ def _bg_color_instruction(background_color: str | None) -> str:
         "flat single color background"
     )
 
+
+def _aspect_ratio_instruction(aspect_ratio: str | None, model_name: str) -> str:
+    """Render the trailing aspect-ratio instruction line.
+
+    Two model families silently ignore size parameters in chat-completion-
+    style image generation through OpenRouter and fall back to 1024×1024:
+      * Gemini (modalities-only — no width/height/size accepted)
+      * OpenAI gpt-5-image / gpt-5.4-image-2 (verified 2026-05-31: source
+        944×1136, requested ``size: "1024x1536"``, output was 1024×1024).
+
+    For both families we inject a plain-text directive into the user prompt
+    so the model has at least a textual signal to honour. Not guaranteed —
+    treat as best-effort. Users who need pixel-accurate dimensions should
+    pick a FLUX.2 / Seedream model (those use the width/height branch and
+    honour them natively).
+
+    Returns empty string for Flux/Seedream (they receive the ratio via the
+    real ``width``/``height`` API params) and for the 1:1 default (no need
+    to spell out the obvious + keeps payloads byte-identical for legacy
+    callers).
+    """
+    if not aspect_ratio or aspect_ratio == '1:1':
+        return ''
+    if model_name not in _GEMINI_MODELS and model_name not in _OPENAI_MODELS:
+        return ''
+    dims = ASPECT_RATIO_DIMS.get(aspect_ratio)
+    if not dims:
+        return ''
+    width, height = dims
+    orientation = 'portrait' if height > width else (
+        'landscape' if width > height else 'square'
+    )
+    return (
+        f"Output aspect ratio: {aspect_ratio} {orientation}, target "
+        f"dimensions {width}×{height} pixels. The generated image MUST "
+        "fill the full canvas at this aspect ratio with no letterboxing."
+    )
+
+
+# OpenAI image-gen models only accept a fixed set of `size` values. Anything
+# else silently falls back to the 1024×1024 default — exactly the bug we hit
+# 2026-05-31 with `5:6` returning a square. We snap any user-chosen ratio to
+# the nearest supported size that preserves orientation (portrait → portrait,
+# landscape → landscape, square → square).
+_OPENAI_SUPPORTED_SIZES: tuple[tuple[int, int], ...] = (
+    (1024, 1024),  # square
+    (1024, 1536),  # portrait — 2:3
+    (1536, 1024),  # landscape — 3:2
+)
+
+
+def _openai_size_for_dims(width: int, height: int) -> str:
+    """Snap (width, height) to the nearest OpenAI-supported size.
+
+    Strategy:
+      1. Preserve orientation — portrait stays portrait, etc.
+      2. Among candidates with matching orientation, pick the one whose
+         aspect ratio is closest to the requested ratio.
+      3. If no orientation match (e.g. an unusual ratio), fall back to
+         the square 1024×1024 default.
+
+    Returned as the ``"{w}x{h}"`` string OpenAI expects in the
+    ``size`` parameter.
+    """
+    requested_ratio = width / height
+    if width > height:
+        orientation_filter = lambda w, h: w > h  # noqa: E731
+    elif width < height:
+        orientation_filter = lambda w, h: w < h  # noqa: E731
+    else:
+        return '1024x1024'
+
+    candidates = [(w, h) for w, h in _OPENAI_SUPPORTED_SIZES if orientation_filter(w, h)]
+    if not candidates:
+        return '1024x1024'
+
+    best = min(candidates, key=lambda wh: abs((wh[0] / wh[1]) - requested_ratio))
+    return f'{best[0]}x{best[1]}'
+
+
 # Aspect ratio → pixel dimensions
 ASPECT_RATIO_DIMS = {
     '1:1': (1024, 1024),
@@ -166,6 +273,10 @@ ASPECT_RATIO_DIMS = {
     '9:16': (1024, 1820),
     '3:2': (1536, 1024),
     '2:3': (1024, 1536),
+    # 5:6 portrait — exact ratio (1000/1200 = 5/6) AND multiple-of-8
+    # (diffusion friendly). 4.5× upscale lands on Merch by Amazon shirt
+    # print target exactly (4500×5400 at 300dpi = 15"×18").
+    '5:6': (1000, 1200),
 }
 
 # Models that are Gemini-family (use modalities param)
@@ -181,6 +292,7 @@ _OPENAI_MODELS = {
     'gpt_image',
     'openai/gpt-5-image',
     'openai/gpt-5-image-mini',
+    'openai/gpt-5.4-image-2',
 }
 
 # Models that support multimodal input (image + text)
@@ -194,6 +306,12 @@ MULTIMODAL_MODELS = {
     'gpt_image',
     'openai/gpt-5-image',
     'openai/gpt-5-image-mini',
+    'openai/gpt-5.4-image-2',
+    # FLUX.2 family — all support text + image input (editing)
+    'black-forest-labs/flux.2-klein-4b',
+    'black-forest-labs/flux.2-max',
+    'black-forest-labs/flux.2-flex',
+    'black-forest-labs/flux.2-pro',
 }
 
 
@@ -242,6 +360,8 @@ def _build_content(
     source_image_url: str = '',
     source_image_url_2: str = '',
     background_color: str | None = None,
+    aspect_ratio: str | None = None,
+    model_name: str = '',
 ):
     """Build OpenRouter message content array based on generation mode.
 
@@ -254,14 +374,33 @@ def _build_content(
     segment of the user message (or as a trailing text part for multimodal
     modes). Omitted when ``background_color`` is None/empty so existing
     callers (tests, legacy paths) keep their byte-for-byte payload shape.
+
+    FIX-canvas-editor-bugs-and-image-gen Phase D bonus — Gemini models
+    silently ignore ``width``/``height``/``size`` params (they only honor
+    ``modalities``). To get the user's selected aspect ratio to actually
+    influence Gemini's output we ALSO append a plain-text ratio directive
+    after the bg-color line via ``_aspect_ratio_instruction``. The helper
+    returns empty string for non-Gemini models (they receive real params)
+    AND for the 1:1 default (no need to spell it out + preserves
+    byte-identical payloads for legacy callers).
     """
     src1_data = _to_data_url(source_image_url) if source_image_url else ''
     src2_data = _to_data_url(source_image_url_2) if source_image_url_2 else ''
 
     bg_instruction = _bg_color_instruction(background_color)
+    ar_instruction = _aspect_ratio_instruction(aspect_ratio, model_name)
 
     def _with_bg(text: str) -> str:
-        return f"{text}\n\n{bg_instruction}" if bg_instruction else text
+        # Renamed in spirit to `_with_trailers` — appends both bg-color and
+        # aspect-ratio directives when present, in that order so the
+        # bg-color line stays the explicit "look here" anchor the system
+        # prompt references (PROJ-34 hard-rule #5).
+        parts = [text]
+        if bg_instruction:
+            parts.append(bg_instruction)
+        if ar_instruction:
+            parts.append(ar_instruction)
+        return '\n\n'.join(parts)
 
     if mode == 'image_to_image':
         # Prompt dominates — image is style/mood guide
@@ -440,9 +579,12 @@ def generate_image(
         'X-Title': 'Merch Miner Design Generator',
     }
 
-    # Build message content based on mode (AC-7: bg-color appended to user msg)
+    # Build message content based on mode (AC-7: bg-color appended to user
+    # msg + FIX phase-D bonus: aspect-ratio appended for Gemini models that
+    # silently ignore the width/height/size API param).
     content = _build_content(
         mode, prompt, source_image_url, source_image_url_2, background_color,
+        aspect_ratio=aspect_ratio, model_name=model_name,
     )
 
     # PROJ-34 AC-1 / AC-2 / AC-3: always send the design-only system prompt.
@@ -472,7 +614,11 @@ def generate_image(
     if model_name in _GEMINI_MODELS:
         payload['modalities'] = ['image', 'text']
     elif model_name in _OPENAI_MODELS:
-        payload['size'] = f'{width}x{height}'
+        # OpenAI image-gen accepts a FIXED set of sizes only — anything else
+        # falls back to 1024×1024 (square). Snap to the nearest supported
+        # size that preserves orientation so a user-picked 5:6 portrait at
+        # 1000×1200 lands at 1024×1536 instead of silently becoming square.
+        payload['size'] = _openai_size_for_dims(width, height)
         payload['quality'] = 'high'
     else:
         # Flux, Seedream, etc.

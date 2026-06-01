@@ -3,6 +3,7 @@ import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 import type { ArtboardData, BackgroundColor, CanvasElement, DesignModel } from '../types';
+import { DEFAULT_DESIGN_MODEL } from '../constants';
 import type { RightPanelState } from '../hooks/useRightPanelState';
 import type { ProjectIdea, ProjectPrompt, ProjectReference } from '../../gallery/types';
 import GenerationZone from './GenerationZone';
@@ -16,9 +17,6 @@ import PromptListSection from './rightPanel/PromptListSection';
 import ArtboardListSection from './rightPanel/ArtboardListSection';
 import ReferencesSection from './rightPanel/ReferencesSection';
 import LayerPanel from './rightPanel/LayerPanel';
-import BulkUpscaleDrawer from './BulkUpscaleDrawer';
-import { useAppSelector } from '@/store/hooks';
-import { useUpscaleBatch } from '../hooks/useUpscaleBatch';
 
 // -----------------------------------------------------------------
 // Constants
@@ -117,6 +115,12 @@ interface RightPanelProps {
   // Mode + Resolution
   generationMode?: GenerationMode;
   onGenerationModeChange?: (mode: GenerationMode) => void;
+  /**
+   * FIX Item 4 — `'auto'` when the latest mode change was driven by the
+   * canvas-selection reflex hook; `'manual'` when the user touched the
+   * dropdown. Forwarded to `GenerationZone` to render the "Auto" chip.
+   */
+  generationModeSource?: 'auto' | 'manual';
   aspectRatio?: AspectRatio;
   onAspectRatioChange?: (ratio: AspectRatio) => void;
   // Phase G props
@@ -165,7 +169,7 @@ const RightPanel = ({
   // Generation zone
   prompt = '',
   onPromptChange,
-  model = 'google/gemini-3.1-flash-preview-image-generation',
+  model = DEFAULT_DESIGN_MODEL,
   onModelChange,
   bgColor = 'light_gray',
   onBgColorChange,
@@ -184,6 +188,7 @@ const RightPanel = ({
   // Mode + Resolution
   generationMode = 'text_to_image',
   onGenerationModeChange,
+  generationModeSource = 'manual',
   aspectRatio = '1:1',
   onAspectRatioChange,
   // Phase G props
@@ -208,11 +213,6 @@ const RightPanel = ({
   onClearSourceImage2,
 }: RightPanelProps) => {
   const { t } = useTranslation();
-
-  // PROJ-27 — read active batch from Redux + drive drawer with live polling.
-  // Mounted at right-panel level so the drawer survives selection changes.
-  const activeBatchId = useAppSelector((s) => s.upscale.activeBatchId);
-  const { jobs, isFetchingStatus } = useUpscaleBatch({ activeBatchId });
 
   const isElementMode = panelState.mode === 'element';
   const hasGenZone = onPromptChange && onModelChange && onBgColorChange && onGenerate;
@@ -261,6 +261,7 @@ const RightPanel = ({
             parallelLineCount={parallelLineCount}
             mode={generationMode}
             onModeChange={onGenerationModeChange}
+            modeSource={generationModeSource}
             aspectRatio={aspectRatio}
             onAspectRatioChange={onAspectRatioChange}
             sourceImageUrl={sourceImageUrl}
@@ -412,14 +413,6 @@ const RightPanel = ({
         </ScrollableZone>
       )}
 
-      {/* PROJ-27 — Bulk-upscale drawer mounted at right-panel level so it
-          persists across selection changes. Reads activeBatchId from Redux
-          + receives polled job rows via useUpscaleBatch. */}
-      <BulkUpscaleDrawer
-        jobs={jobs}
-        batchId={activeBatchId}
-        isLoading={isFetchingStatus}
-      />
     </PanelRoot>
   );
 };

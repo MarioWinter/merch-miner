@@ -146,7 +146,22 @@ const ArtboardElement = ({
 
   // Currently only render image elements (other types in later phases)
   const renderContent = () => {
-    if (element.type === 'image' && image) {
+    if (element.type !== 'image' || !image) return null;
+
+    // Scale-to-fit (letterbox) — preserves the image's natural aspect ratio
+    // inside the user-controlled `element.width` × `element.height` slot.
+    // The artboard's `backgroundColor` shows through the unused band(s).
+    // Render-time only: we DO NOT mutate `element.width/height`, so the
+    // user-resizable slot persists exactly as set (Transformer + persisted
+    // layout both keep working unchanged).
+    const naturalW = image.naturalWidth;
+    const naturalH = image.naturalHeight;
+
+    // Guard against broken / still-loading images (naturalWidth/Height = 0):
+    // fall back to filling the slot so we don't divide by zero or render
+    // a 0-sized image. The image's own `onload` already gates `image` to
+    // non-null, but Konva's loader may briefly produce 0-dim placeholders.
+    if (naturalW <= 0 || naturalH <= 0) {
       return (
         <KonvaImage
           image={image}
@@ -156,8 +171,23 @@ const ArtboardElement = ({
         />
       );
     }
-    // Placeholder for non-image types (future phases)
-    return null;
+
+    const fitScale = Math.min(element.width / naturalW, element.height / naturalH);
+    const renderedWidth = naturalW * fitScale;
+    const renderedHeight = naturalH * fitScale;
+    const renderedX = (element.width - renderedWidth) / 2;
+    const renderedY = (element.height - renderedHeight) / 2;
+
+    return (
+      <KonvaImage
+        image={image}
+        x={renderedX}
+        y={renderedY}
+        width={renderedWidth}
+        height={renderedHeight}
+        listening={false}
+      />
+    );
   };
 
   return (

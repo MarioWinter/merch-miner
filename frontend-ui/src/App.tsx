@@ -27,6 +27,8 @@ import ImprintPage from './views/legal/imprint/ImprintPage';
 import PrivacyPage from './views/legal/privacy/PrivacyPage';
 import { isRegistrationEnabled } from './utils/isRegistrationEnabled';
 import { useVerifyActiveBatch } from './views/designs/board/hooks/useVerifyActiveBatch';
+import { useGlobalUpscaleNotifications } from './hooks/useGlobalUpscaleNotifications';
+import BulkUpscaleDrawer from './views/designs/board/partials/BulkUpscaleDrawer';
 
 
 const App = () => {
@@ -38,6 +40,11 @@ const App = () => {
   // server-side; clear if 404 / terminal so the topbar pill doesn't show stale.
   useVerifyActiveBatch();
 
+  // FIX-canvas-editor-bugs-and-image-gen Phase B — global completion snackbar
+  // for single-design upscales. Mounted here (and ONLY here) so a finished
+  // upscale surfaces even when the user has navigated away from the workspace.
+  useGlobalUpscaleNotifications();
+
   // PROJ-31 — pre-auth flag: registration is the one gate that fires BEFORE
   // login, so the entitlement system (`useCan`) cannot apply. Single ENV
   // helper, no admin override needed (route is unreachable for admins anyway
@@ -45,8 +52,17 @@ const App = () => {
   const registrationEnabled = isRegistrationEnabled();
 
   return (
-    <Routes>
-      {/* Public auth routes */}
+    <>
+      {/* FIX-canvas-editor-bugs-and-image-gen Phase D #2 — global bulk-upscale
+          drawer. Mounted ONCE here (next to useGlobalUpscaleNotifications) so
+          the drawer is reachable from any view via the topbar pill, not just
+          inside the design workspace. Reads its open/jobs state from Redux
+          + useUpscaleBatch internally. `keepMounted: true` on the underlying
+          Modal handles the no-active-batch case cheaply. */}
+      <BulkUpscaleDrawer />
+
+      <Routes>
+        {/* Public auth routes */}
       <Route path="/login" element={<LoginPage />} />
       {registrationEnabled && (
         <Route path="/register" element={<RegisterPage />} />
@@ -93,7 +109,8 @@ const App = () => {
 
       {/* Fallback — redirect unknown routes to dashboard; PrivateRoute handles auth guard */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }
 

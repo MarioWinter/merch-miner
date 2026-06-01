@@ -10,12 +10,9 @@ import {
   useListProjectsQuery,
   useCreateProjectMutation,
   useDeleteProjectMutation,
-  useLazyGetProjectBoardQuery,
 } from '@/store/designSlice';
 import { COLORS } from '@/style/constants';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import useSendDesignsToListings from '@/hooks/useSendDesignsToListings';
-import BulkConfirmDialog from '@/views/designs/workspace/partials/BulkConfirmDialog';
 import ProjectCard from './partials/ProjectCard';
 import CreateProjectDialog from './partials/CreateProjectDialog';
 
@@ -66,29 +63,6 @@ const ProjectGalleryView = () => {
 
   const [createProject, { isLoading: isCreating }] = useCreateProjectMutation();
   const [deleteProject, { isLoading: isDeleting }] = useDeleteProjectMutation();
-
-  // -- PROJ-9 Phase O — Send all approved designs from a project --------
-  const sendToListings = useSendDesignsToListings();
-  const [fetchProjectBoard] = useLazyGetProjectBoardQuery();
-  const [sendingProjectId, setSendingProjectId] = useState<string | null>(null);
-
-  const handleSendProject = useCallback(
-    async (projectId: string) => {
-      setSendingProjectId(projectId);
-      try {
-        const board = await fetchProjectBoard({ projectId }).unwrap();
-        const approvedIds = (board.designs ?? [])
-          .filter((d) => d.status === 'approved')
-          .map((d) => d.id);
-        await sendToListings.send(approvedIds);
-      } catch {
-        enqueueSnackbar(t('common.unexpectedError', 'Unexpected error'), { variant: 'error' });
-      } finally {
-        setSendingProjectId(null);
-      }
-    },
-    [fetchProjectBoard, sendToListings, enqueueSnackbar, t],
-  );
 
   const projects = useMemo(() => projectData?.results ?? [], [projectData?.results]);
 
@@ -230,8 +204,6 @@ const ProjectGalleryView = () => {
               project={project}
               onClick={handleCardClick}
               onDelete={handleDeleteRequest}
-              onSendToListings={handleSendProject}
-              isSending={sendingProjectId === project.id}
             />
           </Grid>
         ))}
@@ -255,14 +227,6 @@ const ProjectGalleryView = () => {
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
         isLoading={isDeleting}
-      />
-
-      <BulkConfirmDialog
-        open={Boolean(sendToListings.pendingConfirm)}
-        count={sendToListings.pendingConfirm?.designIds.length ?? 0}
-        isSending={sendToListings.isSending}
-        onConfirm={() => { void sendToListings.confirmPending(); }}
-        onCancel={sendToListings.cancelPending}
       />
     </Box>
   );

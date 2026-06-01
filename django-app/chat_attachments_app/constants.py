@@ -23,6 +23,9 @@ RESIZE_MAX_DIMENSION = 2048
 # Keep this list in sync with the frontend's `modelRegistry.ts` MODELS array.
 VISION_CAPABLE_MODELS = frozenset({
     'openai/gpt-4.1-mini',
+    'openai/gpt-5.4-mini',
+    'openai/gpt-5.4-nano',
+    'google/gemini-3.5-flash',
     'google/gemini-3-flash-preview',
     'google/gemini-3.1-flash-lite-preview',
 })

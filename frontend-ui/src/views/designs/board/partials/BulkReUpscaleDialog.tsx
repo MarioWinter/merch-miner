@@ -59,9 +59,9 @@ const BulkReUpscaleDialog = ({
         <DialogContentText>
           {t('upscale.bulk.reupscaleBody', {
             defaultValue:
-              '{{count}} of {{total}} selected designs already have an upscaled version. How do you want to proceed?',
-            count: alreadyUpscaledCount,
-            total: totalCount,
+              '{{alreadyCount}} of {{totalCount}} selected designs already have an upscaled version. How do you want to proceed?',
+            alreadyCount: alreadyUpscaledCount,
+            totalCount: totalCount,
           })}
         </DialogContentText>
       </DialogContent>

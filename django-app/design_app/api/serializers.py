@@ -225,7 +225,7 @@ class DesignBoardSerializer(serializers.Serializer):
 
 # -- Generate Trigger --
 
-ASPECT_RATIO_CHOICES = ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3']
+ASPECT_RATIO_CHOICES = ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3', '5:6']
 
 
 def _validate_mode_image_urls(mode: str, source_url: str, source_url_2: str):

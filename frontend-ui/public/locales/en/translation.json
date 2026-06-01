@@ -983,6 +983,17 @@
       "withReference": "Generating with reference image",
       "clearReference": "Clear reference image"
     },
+    "imageGen": {
+      "mode": {
+        "auto": {
+          "badge": "Auto",
+          "tooltip": "Mode derived from Canvas selection"
+        }
+      },
+      "references": {
+        "capWarning": "Only the first 2 images are used as references"
+      }
+    },
     "canvas": {
       "emptyTitle": "Drop images or create an AI Image Board",
       "emptyDescription": "Drag images from your desktop or use the toolbar to get started.",
@@ -1891,14 +1902,14 @@
       "cta": "Send to Listings",
       "successCount": "{{created}} sent to Listings, {{skipped}} already there.",
       "bulkConfirm": "You're sending {{count}} designs — proceed?",
-      "openInPublish": "Open in Publish",
+      "openInPublish": "Open Listings",
       "alreadyInListings": "In Listings",
       "bulkTooLarge": "Maximum is 50 designs per request.",
-      "noEligible": "No approved designs to send.",
-      "noEligibleInSelection": "No approved designs in selection",
-      "notApprovedTooltip": "Only approved designs can be sent.",
-      "sendCount_one": "Send {{count}} approved design to Listings",
-      "sendCount_other": "Send {{count}} approved designs to Listings",
+      "noEligible": "No designs to send.",
+      "noEligibleInSelection": "No designs in selection",
+      "noDesign": "Selected artboard has no design",
+      "sendCount_one": "Send {{count}} design to Listings",
+      "sendCount_other": "Send {{count}} designs to Listings",
       "partialFailure_one": "{{failed}} design failed to send.",
       "partialFailure_other": "{{failed}} designs failed to send.",
       "confirm": "Send",
@@ -2356,6 +2367,9 @@
       "cancelButton": "Cancel"
     },
     "export": {
+      "section": {
+        "flyingUpload": "Flying Upload"
+      },
       "action": {
         "xlsxMba": "Export as XLSX (MBA)",
         "xlsxBasic": "Export as XLSX (Basic)",
@@ -3587,6 +3601,10 @@
       "retryStarted": "Retry started",
       "retryFailed": "Retry failed",
       "permanentFail": "Permanent failure: {{error}}",
+      "cancel": "Cancel",
+      "cancelAria": "Cancel upscale job",
+      "cancelSuccess": "Upscale cancelled",
+      "cancelError": "Could not cancel - try again",
       "statusPending": "pending",
       "statusRunning": "running",
       "statusCompleted": "completed",
@@ -3627,8 +3645,22 @@
     },
     "pill": {
       "label": "Upscaling {{completed}}/{{total}}",
+      "combinedLabel": "Upscaling {{completed}}/{{total}}",
       "starting": "Upscaling…",
-      "ariaOpen": "Open bulk upscale status"
+      "ariaOpen": "Open bulk upscale status",
+      "drawerOpenAria": "Show running upscales",
+      "drawerHeading": "Running upscales",
+      "drawerCloseAria": "Close",
+      "drawerEmpty": "No upscales running",
+      "drawerJobLabel": "Design {{designId}} · {{source}}",
+      "sourceEditor": "Editor",
+      "sourceBatch": "Batch"
+    },
+    "snackbar": {
+      "singleDone": "Upscale done",
+      "singleDoneAction": "Open in Canvas",
+      "singleFailed": "Upscale failed",
+      "singleTimeout": "Upscale is taking longer than expected — check back later."
     },
     "compare": {
       "title": "Upscale comparison",

@@ -54,6 +54,7 @@
 | FIX | Chat Bugfixes + Grouping + Canvas Color-Picker RGBA (8 items) | In Progress | [spec](FIX-chat-bugfixes-and-grouping.md) | 2026-05-28 |
 | FIX | Chat / Vane End-to-End Repair + UX Polish (5 items: cache, agent streaming, dedup, border, infra) | In Review | [spec](FIX-chat-vane-bigfix.md) | 2026-05-30 |
 | FIX | Dashboard Widgets + Bug-Report Modal + Settings Merge + Polish (9 items) | In Review | [spec](FIX-dashboard-bug-report-and-polish.md) | 2026-05-31 |
+| FIX | Canvas + Editor Bugs + Image-Gen Auto-Mode (4 items + 5:6 aspect ratio bonus) | In Review | [spec](FIX-canvas-editor-bugs-and-image-gen.md) | 2026-05-31 |
 
 <!-- Add features above this line -->
 

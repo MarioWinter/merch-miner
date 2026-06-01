@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   ButtonGroup,
+  Chip,
   ClickAwayListener,
   FormControl,
   IconButton,
@@ -25,6 +26,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING, radius } from '@/style/constants';
 import type { BackgroundColor, DesignModel, GenerationMode } from '../types';
+import { getSupportedAspectRatios } from '../constants';
 import ParallelPromptsRow from './ParallelPromptsRow';
 
 // -----------------------------------------------------------------
@@ -39,7 +41,7 @@ const MODE_OPTIONS: Array<{ value: GenerationMode; labelKey: string }> = [
   { value: 'image_to_image_edit', labelKey: 'design.generation.mode.editImage' },
 ];
 
-export type AspectRatio = '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3';
+export type AspectRatio = '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '5:6';
 
 const ASPECT_RATIO_OPTIONS: Array<{ value: AspectRatio; label: string; width: number; height: number }> = [
   { value: '1:1', label: '1 : 1', width: 1024, height: 1024 },
@@ -49,6 +51,10 @@ const ASPECT_RATIO_OPTIONS: Array<{ value: AspectRatio; label: string; width: nu
   { value: '9:16', label: '9 : 16', width: 1024, height: 1820 },
   { value: '3:2', label: '3 : 2', width: 1536, height: 1024 },
   { value: '2:3', label: '2 : 3', width: 1024, height: 1536 },
+  // 5:6 portrait — exact ratio (1000/1200 = 5/6) AND multiple-of-8 (diffusion
+  // friendly). 4.5× upscale lands on the Merch by Amazon shirt print target
+  // EXACTLY (4500×5400 at 300dpi = 15"×18" print).
+  { value: '5:6', label: '5 : 6', width: 1000, height: 1200 },
 ];
 
 const BG_COLOR_OPTIONS: Array<{ value: BackgroundColor; hex: string }> = [
@@ -57,20 +63,46 @@ const BG_COLOR_OPTIONS: Array<{ value: BackgroundColor; hex: string }> = [
   { value: 'neon_green', hex: '#39FF14' },
 ];
 
+// Display order: newest release first (or best-known proxy when exact
+// dates aren't tracked here). Keep MODELS + MODEL_LABELS in sync with the
+// equivalent registry in `ModelSelector.tsx` and the FE multimodal set
+// in `constants.ts`.
+//
+// Release timeline (best-known as of 2026-05-31):
+//   - GPT-5.4 Image 2:    ~2026 mid
+//   - Nano Banana 2:      Gemini 3.1 line, early-2026
+//   - FLUX.2 Klein 4B:    2026-01-14
+//   - FLUX.2 Max:         2025-12-16
+//   - Nano Banana Pro:    Gemini 3 Pro, late-2025
+//   - FLUX.2 Flex:        2025-11-25
+//   - FLUX.2 Pro:         2025-11-25
+//   - GPT-5 Image:        mid-2025
+//   - GPT-5 Mini:         mid-2025
+//   - Nano Banana:        Gemini 2.5, mid-2025 (oldest)
 const MODEL_LABELS: Record<DesignModel, string> = {
+  'openai/gpt-5.4-image-2': 'GPT-5.4 Image 2',
   'google/gemini-3.1-flash-preview-image-generation': 'Nano Banana 2',
+  'black-forest-labs/flux.2-klein-4b': 'FLUX.2 Klein 4B',
+  'black-forest-labs/flux.2-max': 'FLUX.2 Max',
   'google/gemini-3-pro-preview-image-generation': 'Nano Banana Pro',
-  'google/gemini-2.5-flash-preview-image-generation': 'Nano Banana',
+  'black-forest-labs/flux.2-flex': 'FLUX.2 Flex',
+  'black-forest-labs/flux.2-pro': 'FLUX.2 Pro',
   'openai/gpt-5-image': 'GPT-5 Image',
   'openai/gpt-5-image-mini': 'GPT-5 Mini',
+  'google/gemini-2.5-flash-preview-image-generation': 'Nano Banana',
 };
 
 const MODELS: DesignModel[] = [
+  'openai/gpt-5.4-image-2',
   'google/gemini-3.1-flash-preview-image-generation',
+  'black-forest-labs/flux.2-klein-4b',
+  'black-forest-labs/flux.2-max',
   'google/gemini-3-pro-preview-image-generation',
-  'google/gemini-2.5-flash-preview-image-generation',
+  'black-forest-labs/flux.2-flex',
+  'black-forest-labs/flux.2-pro',
   'openai/gpt-5-image',
   'openai/gpt-5-image-mini',
+  'google/gemini-2.5-flash-preview-image-generation',
 ];
 
 const IMAGES_MIN = 1;
@@ -328,6 +360,12 @@ interface GenerationZoneProps {
   /** Generation mode */
   mode?: GenerationMode;
   onModeChange?: (mode: GenerationMode) => void;
+  /**
+   * FIX Item 4 — `'auto'` when the latest mode change came from the
+   * selection-driven reflex; shows an "Auto" chip beside the dropdown so
+   * the user knows the panel switched itself (AC-4-11).
+   */
+  modeSource?: 'auto' | 'manual';
   /** Aspect ratio / resolution */
   aspectRatio?: AspectRatio;
   onAspectRatioChange?: (ratio: AspectRatio) => void;
@@ -365,6 +403,7 @@ const GenerationZone = ({
   hasSelectedImage = false,
   mode = 'text_to_image',
   onModeChange,
+  modeSource = 'manual',
   aspectRatio = '1:1',
   onAspectRatioChange,
   onGenerateAll,
@@ -405,8 +444,8 @@ const GenerationZone = ({
   // of `onPromptChange` doesn't matter for that path.
   const [localPrompt, setLocalPrompt] = useState(prompt);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing parent-controlled prompt is intentional
     setLocalPrompt((curr) => (curr === prompt ? curr : prompt));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prompt]);
   const handlePromptInputChange = (value: string) => {
     setLocalPrompt(value);
@@ -427,9 +466,17 @@ const GenerationZone = ({
     onModeChange?.(e.target.value as GenerationMode);
   };
 
+  // Per-model whitelist — OpenAI accepts only 1:1 / 3:2 / 2:3 cleanly;
+  // every other model accepts the full 8-ratio set. Preserves source order
+  // so the slider keeps a stable index → ratio mapping.
+  const supportedRatios = getSupportedAspectRatios(model);
+  const filteredAspectOptions = ASPECT_RATIO_OPTIONS.filter((o) =>
+    supportedRatios.includes(o.value),
+  );
+
   const handleAspectRatioChange = (_: Event, value: number | number[]) => {
     const idx = typeof value === 'number' ? value : value[0];
-    const opt = ASPECT_RATIO_OPTIONS[idx];
+    const opt = filteredAspectOptions[idx];
     if (opt) onAspectRatioChange?.(opt.value);
   };
 
@@ -443,8 +490,8 @@ const GenerationZone = ({
     onImageCountChange(v);
   };
 
-  const currentAspectIdx = ASPECT_RATIO_OPTIONS.findIndex((o) => o.value === aspectRatio);
-  const currentAspect = ASPECT_RATIO_OPTIONS[currentAspectIdx >= 0 ? currentAspectIdx : 0];
+  const currentAspectIdx = filteredAspectOptions.findIndex((o) => o.value === aspectRatio);
+  const currentAspect = filteredAspectOptions[currentAspectIdx >= 0 ? currentAspectIdx : 0];
 
   const placeholderText = isParallel
     ? t(
@@ -467,21 +514,43 @@ const GenerationZone = ({
 
   return (
     <ZoneRoot aria-label={t('design.generation.zoneLabel', 'Generation controls')}>
-      {/* Mode selector — full width */}
+      {/* Mode selector — full width. FIX Item 4: when the selection-driven
+          reflex set the mode (modeSource === 'auto'), render a small "Auto"
+          chip beside the dropdown so the user understands the panel
+          switched itself based on the canvas selection (AC-4-11). */}
       {onModeChange && (
-        <FormControl size="small" fullWidth disabled={disabled || isGenerating}>
-          <CompactSelect
-            value={mode}
-            onChange={handleModeChange}
-            aria-label={t('design.generation.mode.label', 'Mode')}
-          >
-            {MODE_OPTIONS.map((opt) => (
-              <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.8125rem' }}>
-                {t(opt.labelKey, opt.value)}
-              </MenuItem>
-            ))}
-          </CompactSelect>
-        </FormControl>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <FormControl size="small" sx={{ flex: 1 }} disabled={disabled || isGenerating}>
+            <CompactSelect
+              value={mode}
+              onChange={handleModeChange}
+              aria-label={t('design.generation.mode.label', 'Mode')}
+            >
+              {MODE_OPTIONS.map((opt) => (
+                <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.8125rem' }}>
+                  {t(opt.labelKey, opt.value)}
+                </MenuItem>
+              ))}
+            </CompactSelect>
+          </FormControl>
+          {modeSource === 'auto' && (
+            <Tooltip
+              title={t(
+                'design.imageGen.mode.auto.tooltip',
+                'Mode derived from Canvas selection',
+              )}
+            >
+              <Chip
+                size="small"
+                variant="outlined"
+                color="primary"
+                label={t('design.imageGen.mode.auto.badge', 'Auto')}
+                data-testid="generation-mode-auto-badge"
+                sx={{ height: 24, fontSize: '0.6875rem', fontWeight: 600 }}
+              />
+            </Tooltip>
+          )}
+        </Box>
       )}
 
       {/* Model + BG Color selectors */}
@@ -589,11 +658,13 @@ const GenerationZone = ({
             size="small"
             color="secondary"
             min={0}
-            max={ASPECT_RATIO_OPTIONS.length - 1}
+            max={Math.max(0, filteredAspectOptions.length - 1)}
             step={1}
             value={currentAspectIdx >= 0 ? currentAspectIdx : 0}
             onChange={handleAspectRatioChange}
-            disabled={disabled || isGenerating || !onAspectRatioChange}
+            disabled={
+              disabled || isGenerating || !onAspectRatioChange || filteredAspectOptions.length <= 1
+            }
             aria-label={t('design.generation.resolution', 'Resolution')}
             sx={{ '& .MuiSlider-thumb': { width: 12, height: 12 } }}
           />

@@ -1823,6 +1823,17 @@
       "withReference": "Generierung mit Referenzbild",
       "clearReference": "Referenzbild entfernen"
     },
+    "imageGen": {
+      "mode": {
+        "auto": {
+          "badge": "Auto",
+          "tooltip": "Modus aus Canvas-Selektion abgeleitet"
+        }
+      },
+      "references": {
+        "capWarning": "Es werden nur die ersten 2 Bilder als Referenz verwendet"
+      }
+    },
     "cloud": {
       "title": "Cloud-Speicher",
       "googleDrive": "Google Drive",
@@ -1876,14 +1887,14 @@
       "cta": "An Listings senden",
       "successCount": "{{created}} an Listings gesendet, {{skipped}} bereits dort.",
       "bulkConfirm": "Du sendest {{count}} Designs — fortfahren?",
-      "openInPublish": "In Publish öffnen",
+      "openInPublish": "Listings öffnen",
       "alreadyInListings": "In Listings",
       "bulkTooLarge": "Maximum sind 50 Designs pro Anfrage.",
-      "noEligible": "Keine freigegebenen Designs zum Senden.",
-      "noEligibleInSelection": "Keine freigegebenen Designs in Auswahl",
-      "notApprovedTooltip": "Nur freigegebene Designs können gesendet werden.",
-      "sendCount_one": "{{count}} freigegebenes Design an Listings senden",
-      "sendCount_other": "{{count}} freigegebene Designs an Listings senden",
+      "noEligible": "Keine Designs zum Senden.",
+      "noEligibleInSelection": "Keine Designs in Auswahl",
+      "noDesign": "Ausgewähltes Artboard hat kein Design",
+      "sendCount_one": "{{count}} Design an Listings senden",
+      "sendCount_other": "{{count}} Designs an Listings senden",
       "partialFailure_one": "{{failed}} Design konnte nicht gesendet werden.",
       "partialFailure_other": "{{failed}} Designs konnten nicht gesendet werden.",
       "confirm": "Senden",
@@ -3020,6 +3031,9 @@
       "cancelButton": "Abbrechen"
     },
     "export": {
+      "section": {
+        "flyingUpload": "Flying Upload"
+      },
       "action": {
         "xlsxMba": "Als XLSX exportieren (MBA)",
         "xlsxBasic": "Als XLSX exportieren (Basic)",
@@ -3630,6 +3644,10 @@
       "retryStarted": "Wiederholung gestartet",
       "retryFailed": "Wiederholung fehlgeschlagen",
       "permanentFail": "Dauerhafter Fehler: {{error}}",
+      "cancel": "Abbrechen",
+      "cancelAria": "Upscale-Job abbrechen",
+      "cancelSuccess": "Upscale abgebrochen",
+      "cancelError": "Konnte nicht abgebrochen werden - bitte nochmal probieren",
       "statusPending": "wartend",
       "statusRunning": "läuft",
       "statusCompleted": "fertig",
@@ -3670,8 +3688,22 @@
     },
     "pill": {
       "label": "Upscale {{completed}}/{{total}}",
+      "combinedLabel": "Upscale {{completed}}/{{total}}",
       "starting": "Upscale läuft…",
-      "ariaOpen": "Bulk-Upscale-Status öffnen"
+      "ariaOpen": "Bulk-Upscale-Status öffnen",
+      "drawerOpenAria": "Laufende Upscales anzeigen",
+      "drawerHeading": "Laufende Upscales",
+      "drawerCloseAria": "Schliessen",
+      "drawerEmpty": "Keine Upscales aktiv",
+      "drawerJobLabel": "Design {{designId}} · {{source}}",
+      "sourceEditor": "Editor",
+      "sourceBatch": "Batch"
+    },
+    "snackbar": {
+      "singleDone": "Upscale fertig",
+      "singleDoneAction": "Zum Canvas",
+      "singleFailed": "Upscale fehlgeschlagen",
+      "singleTimeout": "Der Upscale dauert länger als erwartet — schau später nochmal vorbei."
     },
     "compare": {
       "title": "Upscale-Vergleich",
